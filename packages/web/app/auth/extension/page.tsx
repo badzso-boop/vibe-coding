@@ -72,9 +72,13 @@ function ExtensionAuthContent() {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${sessionData.session.access_token}`,
-        'X-Device-Id': 'web',
       },
-      body: JSON.stringify({ state }),
+      body: JSON.stringify({
+        state,
+        extensionId,
+        accessToken: sessionData.session.access_token,
+        refreshToken: sessionData.session.refresh_token,
+      }),
     })
 
     if (!res.ok) {
@@ -84,14 +88,26 @@ function ExtensionAuthContent() {
       return
     }
 
-    const { code } = await res.json()
+    const { data: { code } } = await res.json()
 
     // Send code to extension via chrome.runtime.sendMessage
     try {
       // @ts-expect-error chrome is a browser global in Chromium-based browsers
       if (typeof chrome !== 'undefined' && chrome.runtime) {
         // @ts-expect-error
-        chrome.runtime.sendMessage(extensionId, { type: 'FLOWSPACE_AUTH_CODE', code, state }, () => {
+        chrome.runtime.sendMessage(extensionId, { type: 'FLOWSPACE_AUTH_CODE', code, state }, (response) => {
+          // @ts-expect-error
+          const lastError = chrome.runtime.lastError
+          if (lastError) {
+            setError(`Extension not reachable: ${lastError.message ?? 'unknown error'}. Make sure the extension is installed and reload it.`)
+            setStep('error')
+            return
+          }
+          if (response?.ok === false) {
+            setError(response.error ?? 'Authorization failed. Please try again.')
+            setStep('error')
+            return
+          }
           setStep('success')
           setTimeout(() => window.close(), 2000)
         })

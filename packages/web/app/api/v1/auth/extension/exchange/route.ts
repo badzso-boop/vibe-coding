@@ -66,9 +66,26 @@ export async function POST(request: NextRequest) {
     return Errors.internalError()
   }
 
-  // Check device limit before creating a new device record
+  // Check device limit — if at limit, try to reclaim a never-activated device
   const limitError = await checkDeviceLimit(supabase, record.user_id)
-  if (limitError) return limitError
+  if (limitError) {
+    // Attempt to remove a device that was registered but never used (last_seen_at is null),
+    // which can happen when a previous auth attempt failed mid-flow.
+    const { data: stale } = await supabase
+      .from('devices')
+      .select('id')
+      .eq('user_id', record.user_id)
+      .eq('is_revoked', false)
+      .is('last_seen_at', null)
+      .limit(1)
+      .maybeSingle()
+
+    if (stale) {
+      await supabase.from('devices').delete().eq('id', stale.id)
+    } else {
+      return limitError
+    }
+  }
 
   // Fetch user profile to return alongside tokens
   const { data: userProfile } = await supabase

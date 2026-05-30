@@ -3,17 +3,59 @@ import { z } from 'zod'
 import { requireAuth, isAuthError } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase'
 import { checkTileLimit } from '@/lib/tier'
-import { created, Errors } from '@/lib/response'
+import { ok, created, Errors } from '@/lib/response'
 
 type Params = { params: Promise<{ workspaceId: string }> }
 
 const schema = z.object({
   url: z.string().url(),
-  title: z.string().min(1).max(255).optional(),
+  title: z.string().min(1).max(255).nullish(),
   openMode: z.enum(['iframe', 'tab']).default('iframe'),
   isPinned: z.boolean().default(false),
-  faviconUrl: z.string().url().nullable().optional(),
+  faviconUrl: z.string().url().nullish(),
 })
+
+export async function GET(request: NextRequest, { params }: Params) {
+  const auth = await requireAuth(request)
+  if (isAuthError(auth)) return auth.error
+
+  const { workspaceId } = await params
+  const supabase = createServiceClient()
+
+  const { data: workspace } = await supabase
+    .from('workspaces')
+    .select('id')
+    .eq('id', workspaceId)
+    .eq('user_id', auth.ctx.user.id)
+    .maybeSingle()
+
+  if (!workspace) return Errors.workspaceNotFound()
+
+  const { data: tiles, error } = await supabase
+    .from('tiles')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    console.error('Failed to fetch tiles:', error)
+    return Errors.internalError()
+  }
+
+  return ok(
+    (tiles ?? []).map((t) => ({
+      id: t.id,
+      workspaceId: t.workspace_id,
+      url: t.url,
+      title: t.title,
+      faviconUrl: t.favicon_url,
+      openMode: t.open_mode,
+      isPinned: t.is_pinned,
+      createdAt: t.created_at,
+      updatedAt: t.updated_at,
+    })),
+  )
+}
 
 export async function POST(request: NextRequest, { params }: Params) {
   const auth = await requireAuth(request)
