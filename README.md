@@ -26,6 +26,7 @@ A browser extension that turns your browser into a tiling workspace manager. Org
 - [Subscription Tiers](#subscription-tiers)
 - [Security](#security)
 - [Testing](#testing)
+- [CI / CD](#ci--cd)
 - [Roadmap](#roadmap)
 
 ---
@@ -48,21 +49,24 @@ FlowSpace solves a common problem: people lose productivity switching between do
 └─────────────────────────────────┴───────────────────┘
 ```
 
-Each tile loads the target website inside the extension view. The extension strips `X-Frame-Options` and `Content-Security-Policy` headers for its own sub-frames using `declarativeNetRequest`, making it possible to embed sites that would normally block iframes.
+Each tile loads the target website inside the extension view. The extension strips `X-Frame-Options` and `Content-Security-Policy` headers for its own sub-frames using `declarativeNetRequest`. For sites that still can't be meaningfully embedded (e.g. Gmail, Google Drive — due to third-party cookie restrictions), FlowSpace auto-detects this via the metadata API and opens them as tracked browser tabs instead, with their icon pinned in the left sidebar.
 
 ---
 
 ## Features
 
-### Implemented (MVP)
+### Implemented
 
 - **Tiling layout** — Binary tree split system (like VS Code panels). Each tile can be split right or down individually.
 - **Drag-to-resize** — Drag dividers between tiles to resize them. Works correctly even when tiles contain iframes.
 - **Workspaces** — Multiple named workspaces, each with its own layout, icon, color, and optional keyboard shortcut.
 - **Workspace settings** — Edit name, emoji icon, color, and `Ctrl+1–9` shortcut per workspace.
 - **Keyboard shortcuts** — `Ctrl+1–9` switches between workspaces. `Ctrl+Shift+D` brings you back to FlowSpace from any tab.
+- **Favorites bar** — Star any tile to add it to the favorites bar in the top header. Click a favorite to open it in the current workspace instantly.
+- **Open in tab + sidebar tracking** — Pop out any tile to a real browser tab with one click. The site's favicon appears in the left sidebar; clicking it switches back to that tab. Icons are cleaned up automatically when the tab is closed.
+- **Automatic iframe detection** — When adding a tile, the metadata API checks the site's `X-Frame-Options` and `Content-Security-Policy` headers server-side. Sites that block embedding are auto-set to `openMode: 'tab'` and offer a one-click "Open in tab" button.
 - **Frame-buster protection** — `sandbox` attribute on iframes blocks JavaScript frame-busting scripts (e.g. Stack Overflow) while keeping the page fully functional.
-- **Content script widget** — Floating button injected into every tab for quick navigation back to FlowSpace.
+- **Content script widget** — Floating button injected into every tab for quick navigation back to FlowSpace. Shows tooltip and `Ctrl+Shift+D` hint.
 - **Extension auth flow** — Secure one-time code exchange using AES-256-GCM encrypted tokens. No passwords stored in the extension.
 - **Auth** — Email + password, Google OAuth, email verification, password reset (all via Supabase Auth).
 - **Dashboard** — Usage overview, device management, subscription info.
@@ -70,7 +74,10 @@ Each tile loads the target website inside the extension view. The extension stri
 - **Admin panel** — User management, subscription overview, device revocation for support purposes.
 - **Free tier enforcement** — 1 workspace, 4 tiles per workspace, 1 device.
 - **Cross-browser** — Chrome, Edge, Brave (native). Firefox 128+ (via `webextension-polyfill`).
+- **Newsletter signup** — Email capture form on the landing page backed by Resend Audiences. Subscribers are stored in a Resend Audience; the form handles duplicate emails gracefully (treated as success).
+- **Marketing plan page** — Rendered at `/marketing-plan` as a styled dark-themed page (not indexed by search engines). Also available as raw Markdown via `GET /api/v1/marketing-plan`.
 - **Toast notifications** — Error feedback for failed API calls.
+- **CI pipeline** — GitHub Actions runs type-check, lint, and unit tests on every push.
 
 ### Not yet implemented
 
@@ -93,7 +100,7 @@ Each tile loads the target website inside the extension view. The extension stri
 | Web app | Next.js 15 App Router + Tailwind v4 | SSR, API routes, dashboard |
 | Database | Supabase (PostgreSQL) | Row Level Security, real-time, Auth |
 | Auth | Supabase Auth | Email/password, Google OAuth, JWT |
-| Email | Resend | Transactional emails via Supabase |
+| Email | Resend | Transactional emails + newsletter audience (Resend Audiences API) |
 | Payments | Stripe | Stubbed — not yet active |
 | Monorepo | pnpm workspaces + Turborepo | |
 | Cross-browser | `webextension-polyfill` 0.12 | Chrome + Firefox unified API |
@@ -122,8 +129,8 @@ vibe coding/                          ← monorepo root
 │   │   │   └── lib/
 │   │   │       ├── api.ts            ← Typed API client with auth header injection
 │   │   │       ├── browser.ts        ← webextension-polyfill wrapper
-│   │   │       ├── storage.ts        ← browser.storage.local typed wrapper
-│   │   │       └── types.ts          ← Workspace, Tile TypeScript interfaces
+│   │   │       ├── storage.ts        ← browser.storage.local typed wrapper (auth, activeWorkspaceId, poppedTabs, favorites)
+│   │   │       └── types.ts          ← Workspace, Tile, PoppedTab, Favorite TypeScript interfaces
 │   │   ├── public/
 │   │   │   └── rules/
 │   │   │       └── iframe.json       ← declarativeNetRequest rules (strips iframe-blocking headers)
@@ -132,7 +139,10 @@ vibe coding/                          ← monorepo root
 │   │
 │   ├── web/                          ← Next.js web app (landing + dashboard + API)
 │   │   ├── app/
-│   │   │   ├── page.tsx              ← Landing page
+│   │   │   ├── page.tsx              ← Landing page (CTA + newsletter form)
+│   │   │   ├── marketing-plan/
+│   │   │   │   ├── page.tsx          ← Rendered marketing plan (dark theme, noindex)
+│   │   │   │   └── marketing-plan-content.tsx ← Client component (react-markdown renderer)
 │   │   │   ├── auth/
 │   │   │   │   ├── login/            ← Email + Google login
 │   │   │   │   ├── register/         ← Registration
@@ -167,14 +177,19 @@ vibe coding/                          ← monorepo root
 │   │   │       ├── workspaces/reorder/        ← POST: reorder workspaces
 │   │   │       ├── workspaces/from-template/[id] ← POST: create from template
 │   │   │       ├── tiles/metadata/   ← GET: fetch title + favicon for a URL
+│   │   │       ├── newsletter/subscribe/ ← POST: subscribe email to Resend Audience
+│   │   │       ├── marketing-plan/   ← GET: raw marketing-plan.md as text/markdown
 │   │   │       ├── subscriptions/me/ ← GET: current subscription
 │   │   │       ├── subscriptions/checkout/ ← POST: Stripe checkout (stubbed)
 │   │   │       ├── templates/        ← GET: workspace templates
 │   │   │       └── health/           ← GET: health check
+│   │   ├── components/
+│   │   │   └── newsletter-form.tsx   ← Client component: email input + subscribe button
 │   │   ├── lib/
 │   │   │   ├── auth.ts               ← requireAuth() — JWT validation middleware
 │   │   │   ├── admin.ts              ← requireAdmin() — admin check middleware
 │   │   │   ├── supabase.ts           ← Service role client (server-side only)
+│   │   │   ├── resend.ts             ← Resend singleton (RESEND_API_KEY)
 │   │   │   ├── response.ts           ← ok(), created(), Errors.* response helpers
 │   │   │   ├── tier.ts               ← checkWorkspaceLimit(), checkDeviceLimit(), etc.
 │   │   │   └── crypto.ts             ← AES-256-GCM encrypt/decrypt for auth codes
@@ -191,6 +206,8 @@ vibe coding/                          ← monorepo root
 │   │   │       ├── workspaces.test.ts     ← Workspace CRUD route tests
 │   │   │       ├── auth-exchange.test.ts  ← Extension auth exchange route tests
 │   │   │       └── devices.test.ts        ← Device list + logout route tests
+│   │   ├── public/
+│   │   │   └── marketing-plan.md     ← Source file served by the marketing-plan page + API
 │   │   └── vitest.config.ts          ← Vitest config (path aliases, coverage)
 │   │
 │   └── shared/                       ← Shared TypeScript types + constants
@@ -202,6 +219,7 @@ vibe coding/                          ← monorepo root
 │   └── migrations/
 │       └── 001_add_is_admin.sql      ← Add is_admin column + set yourself as admin
 │
+├── marketing_plan.md                 ← Organic growth plan (edit here, then copy to packages/web/public/)
 ├── project-overview.md               ← Product concept, UX principles, browser support
 ├── data-model.md                     ← Database tables, relationships, layout_json spec
 ├── api-design.md                     ← Full API design with request/response examples
@@ -252,6 +270,11 @@ ENCRYPTION_KEY=your-64-char-hex-key
 
 # App URL (used for OAuth redirects)
 NEXT_PUBLIC_APP_URL=http://localhost:3001
+
+# Resend — get API key from resend.com
+RESEND_API_KEY=re_...
+# Resend Audience ID for newsletter signups — create an Audience in Resend dashboard, copy the ID
+RESEND_AUDIENCE_ID=your-audience-id
 
 # Stripe (leave blank until you implement payments)
 STRIPE_SECRET_KEY=
@@ -549,10 +572,21 @@ Remove a tile. Returns `204`.
 ### Other endpoints
 
 #### `GET /tiles/metadata?url=<encoded-url>`
-Fetches the title and favicon for a URL. Used when adding a new tile to auto-populate the name.
+Fetches title, favicon, and iframe-compatibility for a URL. Used when adding a tile to auto-populate metadata and determine the correct `openMode`.
+
 ```json
-{ "data": { "title": "GitHub", "faviconUrl": "https://github.com/favicon.ico" } }
+{
+  "data": {
+    "url": "https://gmail.com",
+    "title": "Gmail",
+    "faviconUrl": "https://ssl.gstatic.com/ui/v1/icons/mail/rfr/gmail.ico",
+    "isIframeable": false,
+    "iframeBlockReason": "x-frame-options: SAMEORIGIN"
+  }
+}
 ```
+
+When `isIframeable` is `false`, the extension automatically creates the tile with `openMode: "tab"`. The `iframeBlockReason` indicates which header caused the block (`x-frame-options`, `csp: frame-ancestors ...`, or `unreachable`).
 
 #### `GET /devices`
 List all registered devices for the current user.
@@ -574,6 +608,22 @@ List available workspace templates.
 
 #### `POST /workspaces/from-template/:templateId`
 Create a workspace from a template (tiles are created, layout is mapped).
+
+#### `POST /newsletter/subscribe`
+Subscribe an email address to the Resend Audience. No auth required.
+
+```json
+// Request
+{ "email": "user@example.com" }
+
+// Response 200
+{ "data": { "subscribed": true } }
+```
+
+Duplicate emails are treated as success (existence not leaked). Returns `500` if `RESEND_AUDIENCE_ID` is not configured.
+
+#### `GET /marketing-plan`
+Returns the full `marketing-plan.md` file as `text/markdown`. No auth required. Intended for personal access — the rendered version is available at `/marketing-plan`.
 
 #### `GET /health`
 Returns `{ "status": "ok" }`. No auth required. Use for uptime monitoring.
@@ -666,6 +716,38 @@ sandbox="allow-scripts allow-same-origin allow-forms allow-popups
 ```
 
 This blocks `window.top.location = ...` calls while keeping the page fully functional. User-triggered link navigation still works via `allow-top-navigation-by-user-activation`.
+
+### Open in tab + sidebar tracking
+
+When the user clicks "Open in tab" on a tile:
+
+1. The tile is deleted from the DB and removed from the layout (frees the space)
+2. The extension background opens `browser.tabs.create({ url })`
+3. The background saves `{ tabId, url, title, faviconUrl }` to `browser.storage.local` as `poppedTabs`
+4. The App reads `poppedTabs` via storage `onChange` and renders favicon icons at the bottom of the left sidebar
+5. `browser.tabs.onUpdated` keeps the favicon current as the page loads
+6. `browser.tabs.onRemoved` removes the entry automatically when the tab is closed
+7. Clicking a sidebar icon sends `SWITCH_TO_TAB` to the background → focuses the tab and window
+
+### Favorites
+
+Favorites are stored in `browser.storage.local` as `{ url, title, faviconUrl }[]`. They are:
+
+- Added via the ⭐ button in the tile header (hover to reveal)
+- Removed via the × on the chip (hover to reveal)
+- Displayed inline in the top header bar between the workspace name and "Add tile"
+- Clicking a chip calls the full tile creation flow (metadata fetch + DB insert) so the site is opened as a proper tile in the current workspace with the correct `openMode`
+
+### Automatic iframe detection
+
+When a tile is created (via "Add tile", favorites bar, or "Split"), the metadata API makes a server-side HEAD request to the URL and inspects:
+
+- `X-Frame-Options: DENY` or `SAMEORIGIN` → `isIframeable: false`
+- `Content-Security-Policy: frame-ancestors 'none'` or any specific domain list → `isIframeable: false`
+
+If `isIframeable` is `false`, the tile is created with `openMode: 'tab'` and shows a "This site blocks embedding" card with an "Open in tab" button that pops it into the sidebar immediately.
+
+> Note: The extension's `declarativeNetRequest` rules strip these headers for embedded sub-frames. However, sites like Gmail or Google Drive still don't work when embedded due to third-party cookie restrictions (SameSite cookies). The server-side detection catches most of these cases proactively.
 
 ### Binary tree layout manipulation
 
@@ -819,13 +901,52 @@ The query result order in `makeSupabase` must match the exact order your handler
 
 ---
 
+## CI / CD
+
+### GitHub Actions (`.github/workflows/ci.yml`)
+
+Runs on every push to every branch:
+
+| Step | Command | Scope |
+|---|---|---|
+| Format check | `prettier --check .` | all packages |
+| Type check | `tsc --noEmit` | web + extension |
+| Lint | `eslint . --max-warnings 0` | web + extension |
+| Tests | `vitest run` | web (78 tests) |
+
+All steps must pass before merging to `main`.
+
+### ESLint configuration
+
+- **Web** (`packages/web/eslint.config.mjs`): ESLint 9 flat config using `eslint-config-next`. `react-hooks/set-state-in-effect` is disabled (intentional data-fetching pattern — no server-state library in use).
+- **Extension** (`packages/extension/eslint.config.mjs`): `@typescript-eslint` + `eslint-plugin-react-hooks`.
+
+### Prettier configuration (root `prettier.config.mjs`)
+
+```js
+singleQuote: true, semi: false, trailingComma: 'all', printWidth: 100
+```
+
+### Self-hosted runner (recommended for CD)
+
+The repo has no public IP — only Tailscale access. For continuous deployment on push to `main`, run a GitHub Actions **self-hosted runner** on the server. The runner connects outbound to GitHub (no inbound connection needed), so Tailscale/firewall is irrelevant.
+
+```bash
+# On the server — follow GitHub: Settings → Actions → Runners → New self-hosted runner
+./config.sh --url https://github.com/USER/REPO --token TOKEN
+./svc.sh install && ./svc.sh start
+```
+
+Add a `deploy` job to `ci.yml` targeting `runs-on: self-hosted` that runs `git pull && pnpm install && pnpm --filter @flowspace/web build && pm2 restart flowspace`.
+
+---
+
 ## Roadmap
 
 ### Short term
-- [ ] **GitHub push** — get the code safely into version control
-- [ ] **Vercel deploy** — production deployment
+- [ ] **Vercel deploy** — production deployment with custom domain + HTTPS
 - [ ] **Stripe integration** — Pro tier upgrade flow
-- [ ] **GitHub Actions + Supabase CI** — automated schema migrations on push
+- [ ] **CD pipeline** — self-hosted runner on server, auto-deploy on green `main`
 
 ### Medium term
 - [ ] **Tile settings** — edit URL, title, open mode after creation
@@ -835,16 +956,25 @@ The query result order in `makeSupabase` must match the exact order your handler
 - [ ] **Firefox Add-ons submission** — publish for Firefox
 - [ ] **Rate limiting** — protect API endpoints
 - [ ] **Error monitoring** — Sentry integration
+- [ ] **Token refresh** — auto-refresh expired Supabase tokens in the extension
 
 ### Long term
 - [ ] **Offline mode** — cached workspaces + sync queue for offline use
-- [ ] **Token refresh** — auto-refresh expired Supabase tokens in the extension
 - [ ] **Custom templates** — Pro users can create and share workspace templates
 - [ ] **Workspace sharing** — share read-only workspace layouts
-- [ ] **Tab tile sidebar** — full sidebar UI for tab-mode tiles (currently only floating button)
 - [ ] **Multi-window sync** — keep layout in sync across multiple browser windows
 - [ ] **Mobile** — responsive dashboard, mobile-friendly workspace viewer
 - [ ] **Safari** — requires additional Apple developer steps (Safari Web Extensions)
+
+### Done
+- [x] **GitHub push** — code in version control
+- [x] **GitHub Actions CI** — format, type-check, lint, tests on every push
+- [x] **Unit test suite** — 78 tests, Vitest, runs offline (no real DB needed)
+- [x] **Tab tile sidebar** — pop any tile out to a real browser tab; favicon tracked in left sidebar
+- [x] **Favorites bar** — star tiles, one-click reopen in any workspace
+- [x] **Automatic iframe detection** — `openMode` set correctly at tile creation time
+- [x] **Newsletter** — Resend Audiences integration, email capture on landing page
+- [x] **Marketing plan** — rendered page at `/marketing-plan` + raw API at `/api/v1/marketing-plan`
 
 ---
 

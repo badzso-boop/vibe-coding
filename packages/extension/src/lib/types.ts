@@ -22,3 +22,16 @@ export interface Tile {
   isPinned: boolean
   updatedAt: string
 }
+
+export interface PoppedTab {
+  tabId: number
+  url: string
+  title: string | null
+  faviconUrl: string | null
+}
+
+export interface Favorite {
+  url: string
+  title: string | null
+  faviconUrl: string | null
+}

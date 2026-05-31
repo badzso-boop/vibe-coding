@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Plus, Settings, Loader2, Globe, X, LayoutGrid, AlertCircle, Pencil } from 'lucide-react'
+import { Plus, Settings, Loader2, Globe, X, LayoutGrid, AlertCircle, Pencil, ExternalLink, Star } from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
 import { isAuthenticated, storage } from '@/lib/storage'
-import type { Workspace, Tile } from '@/lib/types'
+import type { Workspace, Tile, PoppedTab, Favorite } from '@/lib/types'
 import type { LayoutNode } from '@flowspace/shared'
+import browser from '@/lib/browser'
 
 const APP_URL = import.meta.env.VITE_APP_URL ?? 'http://localhost:3001'
 
@@ -70,12 +71,15 @@ function SplitDownIcon() {
 
 interface TileViewProps {
   tile: Tile
+  isFavorite: boolean
   onClose: () => void
   onSplitRight: () => void
   onSplitDown: () => void
+  onPopOut: () => void
+  onToggleFavorite: () => void
 }
 
-function TileView({ tile, onClose, onSplitRight, onSplitDown }: TileViewProps) {
+function TileView({ tile, isFavorite, onClose, onSplitRight, onSplitDown, onPopOut, onToggleFavorite }: TileViewProps) {
   const [loading, setLoading] = useState(true)
 
   return (
@@ -88,8 +92,16 @@ function TileView({ tile, onClose, onSplitRight, onSplitDown }: TileViewProps) {
         )}
         <span className="flex-1 truncate text-[11px] text-slate-400">{tile.title ?? tile.url}</span>
 
-        {/* Split + close buttons — appear on header hover */}
+        {/* Tile action buttons — appear on header hover */}
         <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+          <button
+            onClick={onToggleFavorite}
+            title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+            className={`rounded p-1 hover:bg-white/10 ${isFavorite ? 'text-yellow-400 hover:text-yellow-300' : 'text-slate-500 hover:text-slate-200'}`}
+          >
+            <Star size={11} fill={isFavorite ? 'currentColor' : 'none'} />
+          </button>
+          <div className="mx-0.5 h-3 w-px bg-white/10" />
           <button
             onClick={onSplitRight}
             title="Split right"
@@ -103,6 +115,14 @@ function TileView({ tile, onClose, onSplitRight, onSplitDown }: TileViewProps) {
             className="rounded p-1 text-slate-500 hover:bg-white/10 hover:text-slate-200"
           >
             <SplitDownIcon />
+          </button>
+          <div className="mx-0.5 h-3 w-px bg-white/10" />
+          <button
+            onClick={onPopOut}
+            title="Open in tab"
+            className="rounded p-1 text-slate-500 hover:bg-white/10 hover:text-slate-200"
+          >
+            <ExternalLink size={11} />
           </button>
           <div className="mx-0.5 h-3 w-px bg-white/10" />
           <button
@@ -133,15 +153,14 @@ function TileView({ tile, onClose, onSplitRight, onSplitDown }: TileViewProps) {
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
           {tile.faviconUrl && <img src={tile.faviconUrl} className="h-10 w-10 rounded-lg" alt="" />}
           <p className="text-sm font-medium text-slate-300">{tile.title ?? tile.url}</p>
-          <p className="text-xs text-slate-500">This site opens in a tab</p>
-          <a
-            href={tile.url}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500"
+          <p className="text-xs text-slate-500">This site blocks embedding in iframes.</p>
+          <button
+            onClick={onPopOut}
+            className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500"
           >
-            Open tab
-          </a>
+            <ExternalLink size={12} />
+            Open in tab
+          </button>
         </div>
       )}
     </div>
@@ -153,12 +172,15 @@ function TileView({ tile, onClose, onSplitRight, onSplitDown }: TileViewProps) {
 interface SplitPaneProps {
   node: LayoutNode
   tiles: Tile[]
+  favorites: Favorite[]
   onRemoveTile: (tileId: string) => void
   onLayoutChange: (node: LayoutNode) => void
   onSplitTile: (tileId: string, direction: 'row' | 'column') => void
+  onPopOutTile: (tile: Tile) => void
+  onToggleFavorite: (tile: Tile) => void
 }
 
-function SplitPane({ node, tiles, onRemoveTile, onLayoutChange, onSplitTile }: SplitPaneProps) {
+function SplitPane({ node, tiles, favorites, onRemoveTile, onLayoutChange, onSplitTile, onPopOutTile, onToggleFavorite }: SplitPaneProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   if (node.type === 'tile') {
@@ -168,9 +190,12 @@ function SplitPane({ node, tiles, onRemoveTile, onLayoutChange, onSplitTile }: S
       <div className="flex h-full w-full overflow-hidden">
         <TileView
           tile={tile}
+          isFavorite={favorites.some((f) => f.url === tile.url)}
           onClose={() => onRemoveTile(tile.id)}
           onSplitRight={() => onSplitTile(tile.id, 'row')}
           onSplitDown={() => onSplitTile(tile.id, 'column')}
+          onPopOut={() => onPopOutTile(tile)}
+          onToggleFavorite={() => onToggleFavorite(tile)}
         />
       </div>
     )
@@ -233,9 +258,12 @@ function SplitPane({ node, tiles, onRemoveTile, onLayoutChange, onSplitTile }: S
         <SplitPane
           node={node.first}
           tiles={tiles}
+          favorites={favorites}
           onRemoveTile={onRemoveTile}
           onLayoutChange={(n) => onLayoutChange({ ...node, first: n })}
           onSplitTile={onSplitTile}
+          onPopOutTile={onPopOutTile}
+          onToggleFavorite={onToggleFavorite}
         />
       </div>
       <div
@@ -250,9 +278,12 @@ function SplitPane({ node, tiles, onRemoveTile, onLayoutChange, onSplitTile }: S
         <SplitPane
           node={node.second}
           tiles={tiles}
+          favorites={favorites}
           onRemoveTile={onRemoveTile}
           onLayoutChange={(n) => onLayoutChange({ ...node, second: n })}
           onSplitTile={onSplitTile}
+          onPopOutTile={onPopOutTile}
+          onToggleFavorite={onToggleFavorite}
         />
       </div>
     </div>
@@ -527,6 +558,97 @@ function EditWorkspaceModal({
   )
 }
 
+// ─── Popped tab button ────────────────────────────────────────────────────────
+
+function faviconSrc(tab: PoppedTab): string {
+  if (tab.faviconUrl) return tab.faviconUrl
+  try {
+    const { hostname } = new URL(tab.url)
+    return `https://www.google.com/s2/favicons?sz=32&domain_url=${encodeURIComponent(`https://${hostname}`)}`
+  } catch {
+    return ''
+  }
+}
+
+function PoppedTabButton({ tab, onSwitch }: { tab: PoppedTab; onSwitch: () => void }) {
+  const [src, setSrc] = useState(() => faviconSrc(tab))
+
+  useEffect(() => {
+    setSrc(faviconSrc(tab))
+  }, [tab])
+
+  return (
+    <button
+      onClick={onSwitch}
+      title={tab.title ?? tab.url}
+      className="group/pt relative flex h-9 w-9 items-center justify-center rounded-xl bg-slate-800 text-slate-400 transition-all hover:bg-slate-700 hover:text-white"
+    >
+      {src ? (
+        <img
+          src={src}
+          className="h-4 w-4 rounded-sm"
+          alt=""
+          onError={() => setSrc('')}
+        />
+      ) : (
+        <Globe size={14} />
+      )}
+      <span className="pointer-events-none absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-slate-950">
+        <ExternalLink size={6} className="text-slate-500" />
+      </span>
+    </button>
+  )
+}
+
+// ─── Favorite chip ────────────────────────────────────────────────────────────
+
+function FavoriteChip({
+  fav,
+  disabled,
+  onClick,
+  onRemove,
+}: {
+  fav: Favorite
+  disabled: boolean
+  onClick: () => void
+  onRemove: () => void
+}) {
+  const [imgError, setImgError] = useState(false)
+
+  return (
+    <div className="group/chip relative flex shrink-0 items-center">
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        title={fav.title ?? fav.url}
+        className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-slate-400 transition-colors hover:bg-white/8 hover:text-slate-200 disabled:opacity-50"
+      >
+        {fav.faviconUrl && !imgError ? (
+          <img
+            src={fav.faviconUrl}
+            className="h-3.5 w-3.5 shrink-0 rounded-sm"
+            alt=""
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <Globe size={12} className="shrink-0" />
+        )}
+        <span className="max-w-[96px] truncate">{fav.title ?? new URL(fav.url).hostname}</span>
+      </button>
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          onRemove()
+        }}
+        title="Remove from favorites"
+        className="absolute -right-1 -top-1 hidden h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-700 text-slate-400 ring-1 ring-slate-950 hover:bg-slate-600 hover:text-white group-hover/chip:flex"
+      >
+        <X size={7} />
+      </button>
+    </div>
+  )
+}
+
 // ─── Main app ─────────────────────────────────────────────────────────────────
 
 export function App() {
@@ -546,6 +668,8 @@ export function App() {
   } | null>(null)
   const [toasts, setToasts] = useState<{ id: number; message: string }[]>([])
   const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null)
+  const [poppedTabs, setPoppedTabs] = useState<PoppedTab[]>([])
+  const [favorites, setFavorites] = useState<Favorite[]>([])
 
   const activeWorkspace = workspaces.find((w) => w.id === activeId) ?? null
 
@@ -590,6 +714,14 @@ export function App() {
     if (authed) loadWorkspaces()
   }, [authed])
   useEffect(() => {
+    storage.get('poppedTabs').then((tabs) => setPoppedTabs(tabs ?? []))
+    storage.get('favorites').then((favs) => setFavorites(favs ?? []))
+    return storage.onChange((changes) => {
+      if (changes.poppedTabs !== undefined) setPoppedTabs(changes.poppedTabs ?? [])
+      if (changes.favorites !== undefined) setFavorites(changes.favorites ?? [])
+    })
+  }, [])
+  useEffect(() => {
     if (activeId) loadTiles(activeId)
   }, [activeId]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -627,21 +759,21 @@ export function App() {
 
   async function fetchTileMeta(url: string) {
     try {
-      return await api.get<{ title: string | null; faviconUrl: string | null }>(
+      return await api.get<{ title: string | null; faviconUrl: string | null; isIframeable: boolean }>(
         `/tiles/metadata?url=${encodeURIComponent(url)}`,
       )
     } catch {
-      return { title: null, faviconUrl: null }
+      return { title: null, faviconUrl: null, isIframeable: true }
     }
   }
 
   async function createTileRecord(workspaceId: string, url: string) {
-    const { title, faviconUrl } = await fetchTileMeta(url)
+    const { title, faviconUrl, isIframeable } = await fetchTileMeta(url)
     return api.post<Tile>(`/workspaces/${workspaceId}/tiles`, {
       url,
       title,
       faviconUrl,
-      openMode: 'iframe',
+      openMode: isIframeable ? 'iframe' : 'tab',
     })
   }
 
@@ -717,6 +849,70 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [activeId, activeWorkspace, tiles, layout],
   )
+
+  const handlePopOutTile = useCallback(
+    async (tile: Tile) => {
+      if (!activeId) return
+      try {
+        await api.delete(`/workspaces/${activeId}/tiles/${tile.id}`)
+        const newTiles = tiles.filter((t) => t.id !== tile.id)
+        const newLayout = layout ? removeTileFromLayout(layout, tile.id) : null
+        setTiles(newTiles)
+        setLayout(newLayout)
+        if (activeId) saveLayout(newLayout, activeId)
+        await browser.runtime.sendMessage({
+          type: 'POP_OUT_TILE',
+          url: tile.url,
+          title: tile.title,
+          faviconUrl: tile.faviconUrl,
+        })
+      } catch (err) {
+        console.error('Failed to pop out tile:', err)
+        showError(err instanceof ApiError ? err.message : 'Failed to open tab.')
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeId, tiles, layout],
+  )
+
+  async function handleToggleFavorite(tile: Tile) {
+    const current = (await storage.get('favorites')) ?? []
+    const exists = current.some((f) => f.url === tile.url)
+    const updated = exists
+      ? current.filter((f) => f.url !== tile.url)
+      : [...current, { url: tile.url, title: tile.title, faviconUrl: tile.faviconUrl }]
+    await storage.set('favorites', updated)
+    setFavorites(updated)
+  }
+
+  async function handleFavoriteClick(fav: Favorite) {
+    if (!activeId) return
+    setAddingTile(true)
+    try {
+      const tile = await createTileRecord(activeId, fav.url)
+      const newTiles = [...tiles, tile]
+      setTiles(newTiles)
+      let newLayout: LayoutNode
+      if (layout) {
+        const leafId = findAnyLeafId(layout)
+        newLayout = splitTileInLayout(layout, leafId, 'row', tile.id)
+      } else {
+        newLayout = { type: 'tile', tileId: tile.id }
+      }
+      setLayout(newLayout)
+      saveLayout(newLayout, activeId)
+    } catch (err) {
+      showError(err instanceof ApiError ? err.message : 'Failed to open favorite.')
+    } finally {
+      setAddingTile(false)
+    }
+  }
+
+  async function handleRemoveFavorite(url: string) {
+    const updated = favorites.filter((f) => f.url !== url)
+    await storage.set('favorites', updated)
+    setFavorites(updated)
+  }
 
   async function handleAddWorkspace(name: string) {
     setShowAddWorkspace(false)
@@ -854,6 +1050,22 @@ export function App() {
 
         <div className="flex-1" />
 
+        {/* Popped-out tabs — bottom of sidebar, newest closest to settings */}
+        {poppedTabs.length > 0 && (
+          <>
+            <div className="w-7 border-t border-white/5" />
+            {[...poppedTabs].reverse().map((pt) => (
+              <PoppedTabButton
+                key={pt.tabId}
+                tab={pt}
+                onSwitch={() =>
+                  browser.runtime.sendMessage({ type: 'SWITCH_TO_TAB', tabId: pt.tabId })
+                }
+              />
+            ))}
+          </>
+        )}
+
         <a
           href={`${APP_URL}/dashboard`}
           target="_blank"
@@ -867,17 +1079,37 @@ export function App() {
 
       {/* Main area */}
       <main className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex h-10 shrink-0 items-center justify-between border-b border-white/5 bg-slate-900/50 px-4">
-          <span className="text-sm font-medium text-slate-300">
+        <div className="flex h-10 shrink-0 items-center gap-2 border-b border-white/5 bg-slate-900/50 px-4">
+          <span className="shrink-0 text-sm font-medium text-slate-300">
             {activeWorkspace?.name ?? 'FlowSpace'}
           </span>
+
+          {/* Favorites — inline, scrollable, takes remaining space */}
+          {favorites.length > 0 && (
+            <>
+              <div className="h-4 w-px shrink-0 bg-white/10" />
+              <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto scrollbar-none">
+                {favorites.map((fav) => (
+                  <FavoriteChip
+                    key={fav.url}
+                    fav={fav}
+                    disabled={addingTile || !activeId}
+                    onClick={() => handleFavoriteClick(fav)}
+                    onRemove={() => handleRemoveFavorite(fav.url)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+
+          <div className="flex-1" />
           <button
             onClick={() => {
               setSplitTarget(null)
               setShowAddTile(true)
             }}
             disabled={addingTile || !activeId}
-            className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
+            className="flex shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
           >
             {addingTile ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />}
             Add tile
@@ -932,9 +1164,12 @@ export function App() {
             <SplitPane
               node={layout}
               tiles={tiles}
+              favorites={favorites}
               onRemoveTile={handleRemoveTile}
               onLayoutChange={handleLayoutChange}
               onSplitTile={openSplitModal}
+              onPopOutTile={handlePopOutTile}
+              onToggleFavorite={handleToggleFavorite}
             />
           ) : null}
         </div>

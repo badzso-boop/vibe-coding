@@ -13,6 +13,7 @@ import {
   Star,
 } from 'lucide-react'
 import { Nav } from '@/components/nav'
+import { NewsletterForm } from '@/components/newsletter-form'
 
 export default function LandingPage() {
   return (
@@ -429,8 +430,7 @@ export default function LandingPage() {
               Ready to take control of your browser?
             </h2>
             <p className="mx-auto mb-8 max-w-md text-slate-400">
-              Join thousands of developers and designers who have already organized their digital
-              workspace.
+              Create your first workspace in 60 seconds. Free to start, no credit card required.
             </p>
             <Link
               href="/auth/register"
@@ -439,6 +439,16 @@ export default function LandingPage() {
               Get started for free
               <ChevronRight size={16} />
             </Link>
+
+            <div className="mt-12 border-t border-white/5 pt-10">
+              <p className="mb-4 text-sm font-medium text-slate-400">
+                Not ready yet? Get updates when we ship new features.
+              </p>
+              <div className="flex justify-center">
+                <NewsletterForm />
+              </div>
+              <p className="mt-3 text-xs text-slate-600">No spam. Unsubscribe any time.</p>
+            </div>
           </div>
         </div>
       </section>

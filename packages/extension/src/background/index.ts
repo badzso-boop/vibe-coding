@@ -7,7 +7,7 @@ browser.runtime.onInstalled.addListener(() => {
   console.log('[FlowSpace] Extension installed')
 })
 
-// Handle messages from content scripts (OPEN_FLOWSPACE_APP + Firefox auth relay)
+// Handle messages from content scripts
 browser.runtime.onMessage.addListener(async (message: unknown) => {
   const msg = message as Record<string, unknown> | null
 
@@ -26,6 +26,36 @@ browser.runtime.onMessage.addListener(async (message: unknown) => {
     return { ok: true }
   }
 
+  if (msg?.type === 'POP_OUT_TILE') {
+    const url = msg.url as string
+    const title = (msg.title as string | null) ?? null
+    const faviconUrl = (msg.faviconUrl as string | null) ?? null
+    const tab = await browser.tabs.create({ url })
+    if (tab.id == null) return { ok: false }
+    const current = (await storage.get('poppedTabs')) ?? []
+    await storage.set('poppedTabs', [...current, { tabId: tab.id, url, title, faviconUrl }])
+    return { ok: true }
+  }
+
+  if (msg?.type === 'SWITCH_TO_TAB') {
+    const tabId = msg.tabId as number
+    try {
+      const tab = await browser.tabs.get(tabId)
+      await browser.tabs.update(tabId, { active: true })
+      if (tab.windowId != null) {
+        await browser.windows.update(tab.windowId, { focused: true })
+      }
+    } catch {
+      // Tab no longer exists — remove it from storage
+      const current = (await storage.get('poppedTabs')) ?? []
+      await storage.set(
+        'poppedTabs',
+        current.filter((t) => t.tabId !== tabId),
+      )
+    }
+    return { ok: true }
+  }
+
   // Firefox auth relay: content script forwards the one-time code from the web page
   if (msg?.type === 'FLOWSPACE_AUTH_CODE') {
     const code = msg.code as string
@@ -37,6 +67,30 @@ browser.runtime.onMessage.addListener(async (message: unknown) => {
       return { ok: false, error: String(err) }
     }
   }
+})
+
+// Clean up popped tabs when the user closes them
+browser.tabs.onRemoved.addListener(async (tabId: number) => {
+  const current = (await storage.get('poppedTabs')) ?? []
+  if (!current.some((t) => t.tabId === tabId)) return
+  await storage.set(
+    'poppedTabs',
+    current.filter((t) => t.tabId !== tabId),
+  )
+})
+
+// Update favicon in storage once the tab finishes loading
+browser.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
+  const favIconUrl = changeInfo.favIconUrl
+  if (!favIconUrl) return
+  // Skip internal browser URLs — they can't be loaded in extension pages
+  if (favIconUrl.startsWith('chrome://') || favIconUrl.startsWith('moz-extension://')) return
+  const current = (await storage.get('poppedTabs')) ?? []
+  const idx = current.findIndex((t) => t.tabId === tabId)
+  if (idx === -1) return
+  const updated = [...current]
+  updated[idx] = { ...updated[idx], faviconUrl: favIconUrl }
+  await storage.set('poppedTabs', updated)
 })
 
 // Chrome-only: web page sends auth code directly via externally_connectable
