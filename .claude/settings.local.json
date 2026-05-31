@@ -4,7 +4,8 @@
       "Bash(pnpm dev *)",
       "Bash(pnpm --filter web build)",
       "Bash(npx tsc *)",
-      "Bash(npx next *)"
+      "Bash(npx next *)",
+      "Bash(pnpm add *)"
     ]
   }
 }

@@ -18,9 +18,10 @@ export async function POST(request: NextRequest) {
     return Errors.badRequest('Invalid JSON')
   }
 
-  const email = typeof (body as Record<string, unknown>).email === 'string'
-    ? ((body as Record<string, unknown>).email as string).trim().toLowerCase()
-    : ''
+  const email =
+    typeof (body as Record<string, unknown>).email === 'string'
+      ? ((body as Record<string, unknown>).email as string).trim().toLowerCase()
+      : ''
 
   if (!email || !EMAIL_RE.test(email)) {
     return Errors.badRequest('A valid email address is required.')

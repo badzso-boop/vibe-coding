@@ -22,9 +22,7 @@ export function MarketingPlanContent({ content }: { content: string }) {
         h4: ({ children }) => (
           <h4 className="mb-2 mt-6 text-base font-semibold text-slate-300">{children}</h4>
         ),
-        p: ({ children }) => (
-          <p className="mb-4 leading-7 text-slate-300">{children}</p>
-        ),
+        p: ({ children }) => <p className="mb-4 leading-7 text-slate-300">{children}</p>,
         a: ({ href, children }) => (
           <a href={href} className="text-blue-400 underline underline-offset-2 hover:text-blue-300">
             {children}
@@ -45,9 +43,7 @@ export function MarketingPlanContent({ content }: { content: string }) {
         code: ({ children, className }) => {
           const isBlock = className?.includes('language-')
           if (isBlock) {
-            return (
-              <code className="block">{children}</code>
-            )
+            return <code className="block">{children}</code>
           }
           return (
             <code className="rounded bg-slate-800 px-1.5 py-0.5 text-sm font-mono text-blue-300">
@@ -70,18 +66,12 @@ export function MarketingPlanContent({ content }: { content: string }) {
             {children}
           </thead>
         ),
-        tbody: ({ children }) => (
-          <tbody className="divide-y divide-white/5">{children}</tbody>
-        ),
+        tbody: ({ children }) => <tbody className="divide-y divide-white/5">{children}</tbody>,
         tr: ({ children }) => <tr className="hover:bg-white/[0.02]">{children}</tr>,
-        th: ({ children }) => (
-          <th className="px-4 py-3 text-left font-medium">{children}</th>
-        ),
+        th: ({ children }) => <th className="px-4 py-3 text-left font-medium">{children}</th>,
         td: ({ children }) => <td className="px-4 py-3">{children}</td>,
         hr: () => <hr className="my-10 border-white/10" />,
-        strong: ({ children }) => (
-          <strong className="font-semibold text-white">{children}</strong>
-        ),
+        strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
         em: ({ children }) => <em className="text-slate-400 italic">{children}</em>,
       }}
     >

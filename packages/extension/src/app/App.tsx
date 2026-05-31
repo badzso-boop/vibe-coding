@@ -1,5 +1,16 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Plus, Settings, Loader2, Globe, X, LayoutGrid, AlertCircle, Pencil, ExternalLink, Star } from 'lucide-react'
+import {
+  Plus,
+  Settings,
+  Loader2,
+  Globe,
+  X,
+  LayoutGrid,
+  AlertCircle,
+  Pencil,
+  ExternalLink,
+  Star,
+} from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
 import { isAuthenticated, storage } from '@/lib/storage'
 import type { Workspace, Tile, PoppedTab, Favorite } from '@/lib/types'
@@ -79,7 +90,15 @@ interface TileViewProps {
   onToggleFavorite: () => void
 }
 
-function TileView({ tile, isFavorite, onClose, onSplitRight, onSplitDown, onPopOut, onToggleFavorite }: TileViewProps) {
+function TileView({
+  tile,
+  isFavorite,
+  onClose,
+  onSplitRight,
+  onSplitDown,
+  onPopOut,
+  onToggleFavorite,
+}: TileViewProps) {
   const [loading, setLoading] = useState(true)
 
   return (
@@ -180,7 +199,16 @@ interface SplitPaneProps {
   onToggleFavorite: (tile: Tile) => void
 }
 
-function SplitPane({ node, tiles, favorites, onRemoveTile, onLayoutChange, onSplitTile, onPopOutTile, onToggleFavorite }: SplitPaneProps) {
+function SplitPane({
+  node,
+  tiles,
+  favorites,
+  onRemoveTile,
+  onLayoutChange,
+  onSplitTile,
+  onPopOutTile,
+  onToggleFavorite,
+}: SplitPaneProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   if (node.type === 'tile') {
@@ -584,12 +612,7 @@ function PoppedTabButton({ tab, onSwitch }: { tab: PoppedTab; onSwitch: () => vo
       className="group/pt relative flex h-9 w-9 items-center justify-center rounded-xl bg-slate-800 text-slate-400 transition-all hover:bg-slate-700 hover:text-white"
     >
       {src ? (
-        <img
-          src={src}
-          className="h-4 w-4 rounded-sm"
-          alt=""
-          onError={() => setSrc('')}
-        />
+        <img src={src} className="h-4 w-4 rounded-sm" alt="" onError={() => setSrc('')} />
       ) : (
         <Globe size={14} />
       )}
@@ -759,9 +782,11 @@ export function App() {
 
   async function fetchTileMeta(url: string) {
     try {
-      return await api.get<{ title: string | null; faviconUrl: string | null; isIframeable: boolean }>(
-        `/tiles/metadata?url=${encodeURIComponent(url)}`,
-      )
+      return await api.get<{
+        title: string | null
+        faviconUrl: string | null
+        isIframeable: boolean
+      }>(`/tiles/metadata?url=${encodeURIComponent(url)}`)
     } catch {
       return { title: null, faviconUrl: null, isIframeable: true }
     }
