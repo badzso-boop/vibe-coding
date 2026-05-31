@@ -8,8 +8,15 @@ const tsPlugin = nextConfig[1]?.plugins?.['@typescript-eslint']
 const config = [
   ...nextConfig,
   {
+    // Build/tool config files at the package root are not source code
+    ignores: ['postcss.config.mjs', 'next.config.ts', 'vitest.config.ts'],
+  },
+  {
     ...(tsPlugin ? { plugins: { '@typescript-eslint': tsPlugin } } : {}),
     rules: {
+      // Data-fetching in useEffect (setState inside effect body) is intentional —
+      // this codebase does not use a server-state library.
+      'react-hooks/set-state-in-effect': 'off',
       '@typescript-eslint/no-unused-vars': [
         'warn',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },

@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase'
 import { decrypt } from '@/lib/crypto'
 import { checkDeviceLimit } from '@/lib/tier'
-import { ok, created, Errors } from '@/lib/response'
+import { created, Errors } from '@/lib/response'
 
 const schema = z.object({
   code: z.string().length(64),

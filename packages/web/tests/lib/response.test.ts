@@ -71,7 +71,6 @@ describe('Errors factories', () => {
     ['shortcutConflict', 409, 'SHORTCUT_CONFLICT'],
     ['internalError', 500, 'INTERNAL_ERROR'],
   ] as const)('Errors.%s() → %i %s', async (factory, status, code) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = (Errors as any)[factory]()
     expect(res.status).toBe(status)
     const body = await json(res)

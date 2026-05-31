@@ -18,7 +18,6 @@ export function makeChain(result: QueryResult = {}) {
     count: result.count ?? null,
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chain: any = {
     // Intermediate methods — return this for chaining
     select: vi.fn().mockReturnThis(),

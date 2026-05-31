@@ -33,7 +33,6 @@ describe('requireAuth', () => {
   })
 
   it('returns TOKEN_INVALID when token format is wrong (no Bearer prefix)', async () => {
-    const req = makeRequest({ token: undefined })
     const headers = new Headers({ Authorization: 'Basic abc' })
     const badReq = new NextRequest('http://localhost:3001/test', { headers })
     const result = await requireAuth(badReq)
