@@ -28,7 +28,7 @@ describe('requireAuth', () => {
     const result = await requireAuth(req)
     expect(result.error).not.toBeNull()
     expect(result.error!.status).toBe(401)
-    const body = await result.error!.json() as { error: { code: string } }
+    const body = (await result.error!.json()) as { error: { code: string } }
     expect(body.error.code).toBe('TOKEN_INVALID')
   })
 
@@ -51,9 +51,7 @@ describe('requireAuth', () => {
   })
 
   it('returns auth context when token is valid and no device header', async () => {
-    vi.mocked(createServiceClient).mockReturnValue(
-      makeSupabase({ authUser: mockUser }) as never,
-    )
+    vi.mocked(createServiceClient).mockReturnValue(makeSupabase({ authUser: mockUser }) as never)
     const result = await requireAuth(makeRequest({ token: 'valid-token' }))
     expect(result.error).toBeNull()
     expect(result.ctx!.user.id).toBe(mockUser.id)
@@ -92,7 +90,7 @@ describe('requireAuth', () => {
     const result = await requireAuth(makeRequest({ token: 'valid-token', deviceId: 'device-1' }))
     expect(result.error).not.toBeNull()
     expect(result.error!.status).toBe(401)
-    const body = await result.error!.json() as { error: { code: string } }
+    const body = (await result.error!.json()) as { error: { code: string } }
     expect(body.error.code).toBe('DEVICE_REVOKED')
   })
 
@@ -106,7 +104,9 @@ describe('requireAuth', () => {
         },
       }) as never,
     )
-    const result = await requireAuth(makeRequest({ token: 'valid-token', deviceId: 'unknown-device' }))
+    const result = await requireAuth(
+      makeRequest({ token: 'valid-token', deviceId: 'unknown-device' }),
+    )
     // Should succeed — deviceId just won't be in ctx (device not found != revoked)
     expect(result.error).toBeNull()
   })

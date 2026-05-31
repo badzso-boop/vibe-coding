@@ -41,11 +41,7 @@ export function RevokeDeviceButton({ deviceId }: { deviceId: string }) {
           : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'
       }`}
     >
-      {loading ? (
-        <Loader2 size={12} className="animate-spin" />
-      ) : (
-        <Trash2 size={12} />
-      )}
+      {loading ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
       {confirming ? 'Confirm?' : 'Revoke'}
     </button>
   )

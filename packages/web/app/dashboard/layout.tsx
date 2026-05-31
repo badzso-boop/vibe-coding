@@ -21,7 +21,9 @@ async function SignOutButton() {
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     redirect('/auth/login?next=/dashboard')
@@ -84,16 +86,18 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <Logo variant="dark" />
           <nav className="flex gap-2">
             {navItems.map(({ href, icon: Icon }) => (
-              <Link key={href} href={href} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
+              <Link
+                key={href}
+                href={href}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+              >
                 <Icon size={18} />
               </Link>
             ))}
           </nav>
         </header>
 
-        <main className="flex-1 p-6 lg:p-8">
-          {children}
-        </main>
+        <main className="flex-1 p-6 lg:p-8">{children}</main>
       </div>
     </div>
   )

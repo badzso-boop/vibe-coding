@@ -8,7 +8,8 @@ export const metadata = { title: 'Devices' }
 function DeviceIcon({ browser }: { browser: string | null }) {
   if (browser === 'firefox') return <Globe size={18} className="text-orange-400" />
   if (browser === 'edge') return <Monitor size={18} className="text-blue-500" />
-  if (browser === 'chrome' || browser === 'brave') return <Monitor size={18} className="text-blue-400" />
+  if (browser === 'chrome' || browser === 'brave')
+    return <Monitor size={18} className="text-blue-400" />
   return <Laptop size={18} className="text-slate-400" />
 }
 
@@ -29,7 +30,9 @@ function formatLastSeen(dateStr: string | null): string {
 
 export default async function DevicesPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
   const { data: devices } = await supabase
@@ -53,8 +56,7 @@ export default async function DevicesPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900">Devices</h1>
         <p className="mt-1 text-slate-500">
-          Manage devices with access to your FlowSpace account.
-          {' '}
+          Manage devices with access to your FlowSpace account.{' '}
           <span className="text-slate-400">
             {devices?.length ?? 0} / {deviceLimit} used
           </span>

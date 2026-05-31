@@ -3,14 +3,8 @@
   "name": "FlowSpace",
   "version": "0.1.0",
   "description": "Tiling workspace manager for your browser — organize multiple websites side-by-side.",
-  "permissions": [
-    "storage",
-    "tabs",
-    "declarativeNetRequest"
-  ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
+  "permissions": ["storage", "tabs", "declarativeNetRequest"],
+  "host_permissions": ["<all_urls>"],
   "action": {
     "default_popup": "src/popup/index.html",
     "default_title": "FlowSpace"
@@ -20,10 +14,7 @@
     "type": "module"
   },
   "externally_connectable": {
-    "matches": [
-      "http://localhost:3001/*",
-      "https://app.flowspace.io/*"
-    ]
+    "matches": ["http://localhost:3001/*", "https://app.flowspace.io/*"]
   },
   "browser_specific_settings": {
     "gecko": {

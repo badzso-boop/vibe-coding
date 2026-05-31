@@ -34,14 +34,10 @@ export function apiError(
 
 // Typed error factory — keeps error definitions consistent across all routes
 export const Errors = {
-  tokenInvalid: () =>
-    apiError(401, 'TOKEN_INVALID', 'Invalid or expired token'),
-  deviceRevoked: () =>
-    apiError(401, 'DEVICE_REVOKED', 'This device has been revoked'),
-  subscriptionExpired: () =>
-    apiError(403, 'SUBSCRIPTION_EXPIRED', 'Your subscription has expired'),
-  tierLimitReached: (msg: string) =>
-    apiError(422, 'TIER_LIMIT_REACHED', msg),
+  tokenInvalid: () => apiError(401, 'TOKEN_INVALID', 'Invalid or expired token'),
+  deviceRevoked: () => apiError(401, 'DEVICE_REVOKED', 'This device has been revoked'),
+  subscriptionExpired: () => apiError(403, 'SUBSCRIPTION_EXPIRED', 'Your subscription has expired'),
+  tierLimitReached: (msg: string) => apiError(422, 'TIER_LIMIT_REACHED', msg),
   deviceLimitReached: () =>
     apiError(422, 'DEVICE_LIMIT_REACHED', 'Maximum device limit reached for your plan'),
   shortcutConflict: () =>
@@ -54,18 +50,11 @@ export const Errors = {
     apiError(401, 'AUTH_CODE_EXPIRED', 'The auth code has expired or was already used'),
   authStateMismatch: () =>
     apiError(401, 'AUTH_STATE_MISMATCH', 'The state parameter does not match'),
-  workspaceNotFound: () =>
-    apiError(404, 'WORKSPACE_NOT_FOUND', 'Workspace not found'),
-  tileNotFound: () =>
-    apiError(404, 'TILE_NOT_FOUND', 'Tile not found'),
-  deviceNotFound: () =>
-    apiError(404, 'DEVICE_NOT_FOUND', 'Device not found'),
-  templateNotFound: () =>
-    apiError(404, 'TEMPLATE_NOT_FOUND', 'Template not found'),
-  badRequest: (msg: string) =>
-    apiError(400, 'BAD_REQUEST', msg),
-  forbidden: () =>
-    apiError(403, 'FORBIDDEN', 'You do not have permission to perform this action'),
-  internalError: () =>
-    apiError(500, 'INTERNAL_ERROR', 'An unexpected error occurred'),
+  workspaceNotFound: () => apiError(404, 'WORKSPACE_NOT_FOUND', 'Workspace not found'),
+  tileNotFound: () => apiError(404, 'TILE_NOT_FOUND', 'Tile not found'),
+  deviceNotFound: () => apiError(404, 'DEVICE_NOT_FOUND', 'Device not found'),
+  templateNotFound: () => apiError(404, 'TEMPLATE_NOT_FOUND', 'Template not found'),
+  badRequest: (msg: string) => apiError(400, 'BAD_REQUEST', msg),
+  forbidden: () => apiError(403, 'FORBIDDEN', 'You do not have permission to perform this action'),
+  internalError: () => apiError(500, 'INTERNAL_ERROR', 'An unexpected error occurred'),
 } as const

@@ -15,7 +15,9 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from('workspace_templates')
-    .select('id, name, description, icon, is_official, use_count, layout_json, tiles_json, created_at')
+    .select(
+      'id, name, description, icon, is_official, use_count, layout_json, tiles_json, created_at',
+    )
 
   if (officialOnly) {
     query = query.eq('is_official', true)

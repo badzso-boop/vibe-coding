@@ -1,0 +1,16 @@
+# Build outputs
+.next/
+dist/
+coverage/
+node_modules/
+
+# Generated files
+*.lock
+pnpm-lock.yaml
+
+# Supabase
+supabase/.branches/
+supabase/.temp/
+
+# Docs
+*.md

@@ -18,9 +18,7 @@ export function Logo({ className = '', variant = 'light' }: LogoProps) {
           <div className="h-2.5 w-2.5 rounded-sm bg-white" />
         </div>
       </div>
-      <span className={`text-lg font-semibold tracking-tight ${textColor}`}>
-        FlowSpace
-      </span>
+      <span className={`text-lg font-semibold tracking-tight ${textColor}`}>FlowSpace</span>
     </Link>
   )
 }

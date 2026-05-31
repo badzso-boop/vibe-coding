@@ -15,7 +15,11 @@ async function revokeDevice(formData: FormData) {
   const deviceId = formData.get('deviceId') as string
   const userId = formData.get('userId') as string
   const service = createServiceClient()
-  await service.from('devices').update({ is_revoked: true }).eq('id', deviceId).eq('user_id', userId)
+  await service
+    .from('devices')
+    .update({ is_revoked: true })
+    .eq('id', deviceId)
+    .eq('user_id', userId)
   revalidatePath(`/admin/users/${userId}`)
 }
 
@@ -204,9 +208,7 @@ export default async function AdminUserDetailPage({ params }: Params) {
                 <td className="px-5 py-3">
                   <span
                     className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                      device.is_revoked
-                        ? 'bg-red-50 text-red-600'
-                        : 'bg-green-50 text-green-700'
+                      device.is_revoked ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'
                     }`}
                   >
                     {device.is_revoked ? 'Revoked' : 'Active'}
@@ -244,9 +246,7 @@ export default async function AdminUserDetailPage({ params }: Params) {
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <div className="flex items-center gap-2 border-b border-slate-100 px-6 py-4">
           <LayoutGrid size={15} className="text-slate-500" />
-          <h2 className="text-sm font-semibold text-slate-900">
-            Workspaces ({workspaces.length})
-          </h2>
+          <h2 className="text-sm font-semibold text-slate-900">Workspaces ({workspaces.length})</h2>
         </div>
         <table className="w-full text-sm">
           <thead>

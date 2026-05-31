@@ -72,7 +72,7 @@ async function exchangeCode(code: string, state: string): Promise<void> {
   })
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({})) as { message?: string }
+    const body = (await res.json().catch(() => ({}))) as { message?: string }
     throw new Error(body.message ?? `Exchange failed: ${res.status}`)
   }
 

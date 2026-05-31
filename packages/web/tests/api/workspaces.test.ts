@@ -13,11 +13,7 @@ vi.mock('@/lib/supabase', () => ({
 import { requireAuth } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase'
 import { GET, POST } from '@/app/api/v1/workspaces/route'
-import {
-  GET as GET_WS,
-  PATCH,
-  DELETE,
-} from '@/app/api/v1/workspaces/[workspaceId]/route'
+import { GET as GET_WS, PATCH, DELETE } from '@/app/api/v1/workspaces/[workspaceId]/route'
 
 const mockWorkspace = {
   id: 'ws-1',
@@ -49,7 +45,10 @@ beforeEach(() => {
 
 describe('GET /api/v1/workspaces', () => {
   it('returns 401 when not authenticated', async () => {
-    vi.mocked(requireAuth).mockResolvedValue({ ctx: null, error: { status: 401, json: async () => ({ error: { code: 'TOKEN_INVALID' } }) } } as never)
+    vi.mocked(requireAuth).mockResolvedValue({
+      ctx: null,
+      error: { status: 401, json: async () => ({ error: { code: 'TOKEN_INVALID' } }) },
+    } as never)
     const res = await GET(makeReq())
     expect(res.status).toBe(401)
   })
@@ -60,7 +59,7 @@ describe('GET /api/v1/workspaces', () => {
     )
     const res = await GET(makeReq())
     expect(res.status).toBe(200)
-    const body = await res.json() as { data: unknown[] }
+    const body = (await res.json()) as { data: unknown[] }
     expect(body.data).toHaveLength(1)
   })
 
@@ -70,7 +69,7 @@ describe('GET /api/v1/workspaces', () => {
     )
     const res = await GET(makeReq())
     expect(res.status).toBe(200)
-    const body = await res.json() as { data: unknown[] }
+    const body = (await res.json()) as { data: unknown[] }
     expect(body.data).toHaveLength(0)
   })
 })
@@ -102,7 +101,7 @@ describe('POST /api/v1/workspaces', () => {
     )
     const res = await POST(makeReq('POST', { name: 'Test', shortcutKey: 1 }))
     expect(res.status).toBe(409)
-    const body = await res.json() as { error: { code: string } }
+    const body = (await res.json()) as { error: { code: string } }
     expect(body.error.code).toBe('SHORTCUT_CONFLICT')
   })
 
@@ -117,7 +116,7 @@ describe('POST /api/v1/workspaces', () => {
     )
     const res = await POST(makeReq('POST', { name: 'Test' }))
     expect(res.status).toBe(422)
-    const body = await res.json() as { error: { code: string } }
+    const body = (await res.json()) as { error: { code: string } }
     expect(body.error.code).toBe('TIER_LIMIT_REACHED')
   })
 
@@ -129,7 +128,7 @@ describe('POST /api/v1/workspaces', () => {
           // Pro tier: no workspaces count query for workspace limit
           subscriptions: { data: { tier: 'pro' } },
           workspaces: [
-            { count: 2 },    // count for sort_order calculation
+            { count: 2 }, // count for sort_order calculation
             { data: newWs }, // insert result
           ],
         },
@@ -137,7 +136,7 @@ describe('POST /api/v1/workspaces', () => {
     )
     const res = await POST(makeReq('POST', { name: 'My Workspace' }))
     expect(res.status).toBe(201)
-    const body = await res.json() as { data: { name: string } }
+    const body = (await res.json()) as { data: { name: string } }
     expect(body.data.name).toBe('Work')
   })
 })
@@ -183,7 +182,9 @@ describe('PATCH /api/v1/workspaces/:id', () => {
     })
     const res = await PATCH(req, PARAMS)
     expect(res.status).toBe(409)
-    const body = await res.json() as { error: { code: string; details: { serverUpdatedAt: string } } }
+    const body = (await res.json()) as {
+      error: { code: string; details: { serverUpdatedAt: string } }
+    }
     expect(body.error.code).toBe('STALE_DATA')
     expect(body.error.details.serverUpdatedAt).toBe('2024-06-01T10:00:00+00:00')
   })
@@ -194,8 +195,8 @@ describe('PATCH /api/v1/workspaces/:id', () => {
       makeSupabase({
         tables: {
           workspaces: [
-            { data: { updated_at: ts } },       // ownership + optimistic lock check
-            { data: { id: 'other-ws' } },        // shortcut conflict check
+            { data: { updated_at: ts } }, // ownership + optimistic lock check
+            { data: { id: 'other-ws' } }, // shortcut conflict check
           ],
         },
       }) as never,
@@ -206,7 +207,7 @@ describe('PATCH /api/v1/workspaces/:id', () => {
     })
     const res = await PATCH(req, PARAMS)
     expect(res.status).toBe(409)
-    const body = await res.json() as { error: { code: string } }
+    const body = (await res.json()) as { error: { code: string } }
     expect(body.error.code).toBe('SHORTCUT_CONFLICT')
   })
 
@@ -217,8 +218,8 @@ describe('PATCH /api/v1/workspaces/:id', () => {
       makeSupabase({
         tables: {
           workspaces: [
-            { data: { updated_at: ts } },  // ownership + lock
-            { data: updated },              // update result
+            { data: { updated_at: ts } }, // ownership + lock
+            { data: updated }, // update result
           ],
         },
       }) as never,
@@ -239,7 +240,9 @@ describe('DELETE /api/v1/workspaces/:id', () => {
     vi.mocked(createServiceClient).mockReturnValue(
       makeSupabase({ tables: { workspaces: { data: null } } }) as never,
     )
-    const req = new NextRequest('http://localhost:3001/api/v1/workspaces/ws-1', { method: 'DELETE' })
+    const req = new NextRequest('http://localhost:3001/api/v1/workspaces/ws-1', {
+      method: 'DELETE',
+    })
     const res = await DELETE(req, PARAMS)
     expect(res.status).toBe(404)
   })
@@ -250,12 +253,14 @@ describe('DELETE /api/v1/workspaces/:id', () => {
         tables: {
           workspaces: [
             { data: { id: 'ws-1' } }, // existence check
-            { data: null },            // delete
+            { data: null }, // delete
           ],
         },
       }) as never,
     )
-    const req = new NextRequest('http://localhost:3001/api/v1/workspaces/ws-1', { method: 'DELETE' })
+    const req = new NextRequest('http://localhost:3001/api/v1/workspaces/ws-1', {
+      method: 'DELETE',
+    })
     const res = await DELETE(req, PARAMS)
     expect(res.status).toBe(204)
   })
@@ -286,7 +291,7 @@ describe('GET /api/v1/workspaces/:id', () => {
     const req = new NextRequest('http://localhost:3001/api/v1/workspaces/ws-1')
     const res = await GET_WS(req, PARAMS)
     expect(res.status).toBe(200)
-    const body = await res.json() as { data: { id: string } }
+    const body = (await res.json()) as { data: { id: string } }
     expect(body.data.id).toBe('ws-1')
   })
 })

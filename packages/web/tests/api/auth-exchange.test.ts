@@ -61,7 +61,7 @@ describe('POST /api/v1/auth/extension/exchange', () => {
     )
     const res = await POST(makeReq({ code: CODE, state: STATE }))
     expect(res.status).toBe(401)
-    const body = await res.json() as { error: { code: string } }
+    const body = (await res.json()) as { error: { code: string } }
     expect(body.error.code).toBe('AUTH_CODE_EXPIRED')
   })
 
@@ -77,7 +77,7 @@ describe('POST /api/v1/auth/extension/exchange', () => {
     )
     const res = await POST(makeReq({ code: CODE, state: STATE }))
     expect(res.status).toBe(401)
-    const body = await res.json() as { error: { code: string } }
+    const body = (await res.json()) as { error: { code: string } }
     expect(body.error.code).toBe('AUTH_CODE_EXPIRED')
   })
 
@@ -107,7 +107,7 @@ describe('POST /api/v1/auth/extension/exchange', () => {
     )
     const res = await POST(makeReq({ code: CODE, state: STATE }))
     expect(res.status).toBe(401)
-    const body = await res.json() as { error: { code: string } }
+    const body = (await res.json()) as { error: { code: string } }
     expect(body.error.code).toBe('AUTH_STATE_MISMATCH')
   })
 
@@ -123,21 +123,23 @@ describe('POST /api/v1/auth/extension/exchange', () => {
       makeSupabase({
         tables: {
           auth_extension_codes: [
-            { data: validCode },  // 1. code lookup
-            { data: null },       // 2. mark as used
+            { data: validCode }, // 1. code lookup
+            { data: null }, // 2. mark as used
           ],
           subscriptions: { data: { tier: 'free' } }, // 3. tier check (free, 0 devices → ok)
           devices: [
-            { count: 0 },                      // 4. limit check (under limit)
+            { count: 0 }, // 4. limit check (under limit)
             { data: { id: 'new-device-id' } }, // 6. insert result
           ],
           users: { data: { id: USER_ID, email: 'test@example.com', name: null, avatar_url: null } }, // 5.
         },
       }) as never,
     )
-    const res = await POST(makeReq({ code: CODE, state: STATE, deviceName: 'My Extension', browser: 'chrome' }))
+    const res = await POST(
+      makeReq({ code: CODE, state: STATE, deviceName: 'My Extension', browser: 'chrome' }),
+    )
     expect(res.status).toBe(201)
-    const body = await res.json() as {
+    const body = (await res.json()) as {
       data: { accessToken: string; refreshToken: string; deviceId: string }
     }
     expect(body.data.accessToken).toBe('access-jwt')
@@ -161,18 +163,18 @@ describe('POST /api/v1/auth/extension/exchange', () => {
       makeSupabase({
         tables: {
           auth_extension_codes: [
-            { data: validCode },  // 1.
-            { data: null },       // 2.
+            { data: validCode }, // 1.
+            { data: null }, // 2.
           ],
           subscriptions: [
-            { data: { tier: 'free' } },  // 3. for checkDeviceLimit
-            { data: { tier: 'free' } },  // 6. for auto-revoke branch
+            { data: { tier: 'free' } }, // 3. for checkDeviceLimit
+            { data: { tier: 'free' } }, // 6. for auto-revoke branch
           ],
           devices: [
-            { count: 1 },                      // 4. limit check
-            { data: null },                    // 5. no never-used device
+            { count: 1 }, // 4. limit check
+            { data: null }, // 5. no never-used device
             { data: { id: 'oldest-device' } }, // 7. oldest device
-            { data: null },                    // 8. delete result
+            { data: null }, // 8. delete result
             { data: { id: 'new-device-id' } }, // 10. insert new
           ],
           users: { data: { id: USER_ID, email: 'test@example.com', name: null, avatar_url: null } }, // 9.
@@ -189,15 +191,15 @@ describe('POST /api/v1/auth/extension/exchange', () => {
       makeSupabase({
         tables: {
           auth_extension_codes: [
-            { data: validCode },  // code lookup
-            { data: null },       // mark as used
+            { data: validCode }, // code lookup
+            { data: null }, // mark as used
           ],
           subscriptions: [
-            { data: { tier: 'pro' } },  // checkDeviceLimit getUserTier
-            { data: { tier: 'pro' } },  // auto-revoke tier check → pro → return limitError
+            { data: { tier: 'pro' } }, // checkDeviceLimit getUserTier
+            { data: { tier: 'pro' } }, // auto-revoke tier check → pro → return limitError
           ],
           devices: [
-            { count: 5 },   // pro limit = 5, exceeded
+            { count: 5 }, // pro limit = 5, exceeded
             { data: null }, // no never-used device
           ],
         },
@@ -205,7 +207,7 @@ describe('POST /api/v1/auth/extension/exchange', () => {
     )
     const res = await POST(makeReq({ code: CODE, state: STATE }))
     expect(res.status).toBe(422)
-    const body = await res.json() as { error: { code: string } }
+    const body = (await res.json()) as { error: { code: string } }
     expect(body.error.code).toBe('DEVICE_LIMIT_REACHED')
   })
 })

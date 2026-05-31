@@ -30,7 +30,7 @@ describe('checkWorkspaceLimit', () => {
     const result = await checkWorkspaceLimit(db as never, USER_ID)
     expect(result).not.toBeNull()
     expect(result!.status).toBe(422)
-    const body = await result!.json() as { error: { code: string } }
+    const body = (await result!.json()) as { error: { code: string } }
     expect(body.error.code).toBe('TIER_LIMIT_REACHED')
   })
 
@@ -116,7 +116,7 @@ describe('checkDeviceLimit', () => {
     const result = await checkDeviceLimit(db as never, USER_ID)
     expect(result).not.toBeNull()
     expect(result!.status).toBe(422)
-    const body = await result!.json() as { error: { code: string } }
+    const body = (await result!.json()) as { error: { code: string } }
     expect(body.error.code).toBe('DEVICE_LIMIT_REACHED')
   })
 

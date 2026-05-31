@@ -40,9 +40,7 @@ export async function POST(request: NextRequest) {
     updated_at: new Date().toISOString(),
   }))
 
-  const { error } = await supabase
-    .from('workspaces')
-    .upsert(updates, { onConflict: 'id' })
+  const { error } = await supabase.from('workspaces').upsert(updates, { onConflict: 'id' })
 
   if (error) {
     console.error('Failed to reorder workspaces:', error)

@@ -41,7 +41,10 @@ export default function ResetPasswordPage() {
           We sent a password reset link to{' '}
           <span className="font-medium text-slate-200">{email}</span>. The link expires in 1 hour.
         </p>
-        <Link href="/auth/login" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">
+        <Link
+          href="/auth/login"
+          className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+        >
           ← Back to sign in
         </Link>
       </div>

@@ -86,9 +86,7 @@ function TileView({ tile, onClose, onSplitRight, onSplitDown }: TileViewProps) {
         ) : (
           <Globe size={12} className="shrink-0 text-slate-500" />
         )}
-        <span className="flex-1 truncate text-[11px] text-slate-400">
-          {tile.title ?? tile.url}
-        </span>
+        <span className="flex-1 truncate text-[11px] text-slate-400">{tile.title ?? tile.url}</span>
 
         {/* Split + close buttons — appear on header hover */}
         <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
@@ -133,9 +131,7 @@ function TileView({ tile, onClose, onSplitRight, onSplitDown }: TileViewProps) {
         </>
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-          {tile.faviconUrl && (
-            <img src={tile.faviconUrl} className="h-10 w-10 rounded-lg" alt="" />
-          )}
+          {tile.faviconUrl && <img src={tile.faviconUrl} className="h-10 w-10 rounded-lg" alt="" />}
           <p className="text-sm font-medium text-slate-300">{tile.title ?? tile.url}</p>
           <p className="text-xs text-slate-500">This site opens in a tab</p>
           <a
@@ -191,7 +187,7 @@ function SplitPane({ node, tiles, onRemoveTile, onLayoutChange, onSplitTile }: S
 
     // Iframes steal mouse events when cursor enters them — disable during drag
     document.querySelectorAll('iframe').forEach((f) => {
-      (f as HTMLElement).style.pointerEvents = 'none'
+      ;(f as HTMLElement).style.pointerEvents = 'none'
     })
 
     function onMouseMove(ev: MouseEvent) {
@@ -209,7 +205,7 @@ function SplitPane({ node, tiles, onRemoveTile, onLayoutChange, onSplitTile }: S
       window.removeEventListener('mouseleave', onMouseUp)
       document.body.style.cursor = ''
       document.querySelectorAll('iframe').forEach((f) => {
-        (f as HTMLElement).style.pointerEvents = ''
+        ;(f as HTMLElement).style.pointerEvents = ''
       })
       const rect = el.getBoundingClientRect()
       let ratio = isRow
@@ -246,7 +242,9 @@ function SplitPane({ node, tiles, onRemoveTile, onLayoutChange, onSplitTile }: S
         className={`group shrink-0 ${isRow ? 'w-1 cursor-col-resize' : 'h-1 cursor-row-resize'} relative bg-white/5 transition-colors hover:bg-blue-500/50`}
         onMouseDown={startDrag}
       >
-        <div className={`absolute ${isRow ? 'inset-y-0 -left-1 -right-1' : 'inset-x-0 -top-1 -bottom-1'}`} />
+        <div
+          className={`absolute ${isRow ? 'inset-y-0 -left-1 -right-1' : 'inset-x-0 -top-1 -bottom-1'}`}
+        />
       </div>
       <div className="flex-1 overflow-hidden">
         <SplitPane
@@ -363,18 +361,34 @@ function AddWorkspaceModal({ onAdd, onClose }: AddWorkspaceModalProps) {
 // ─── Edit workspace modal ─────────────────────────────────────────────────────
 
 const WORKSPACE_COLORS = [
-  '#3b82f6', '#8b5cf6', '#ec4899', '#ef4444',
-  '#f97316', '#eab308', '#22c55e', '#14b8a6',
+  '#3b82f6',
+  '#8b5cf6',
+  '#ec4899',
+  '#ef4444',
+  '#f97316',
+  '#eab308',
+  '#22c55e',
+  '#14b8a6',
 ]
 
 interface EditWorkspaceModalProps {
   workspace: Workspace
   usedShortcuts: Set<number>
-  onSave: (data: { name: string; icon: string | null; color: string | null; shortcutKey: number | null }) => Promise<void>
+  onSave: (data: {
+    name: string
+    icon: string | null
+    color: string | null
+    shortcutKey: number | null
+  }) => Promise<void>
   onClose: () => void
 }
 
-function EditWorkspaceModal({ workspace, usedShortcuts, onSave, onClose }: EditWorkspaceModalProps) {
+function EditWorkspaceModal({
+  workspace,
+  usedShortcuts,
+  onSave,
+  onClose,
+}: EditWorkspaceModalProps) {
   const [name, setName] = useState(workspace.name)
   const [icon, setIcon] = useState(workspace.icon ?? '')
   const [color, setColor] = useState<string | null>(workspace.color)
@@ -400,7 +414,6 @@ function EditWorkspaceModal({ workspace, usedShortcuts, onSave, onClose }: EditW
       <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
         <h2 className="mb-5 text-base font-semibold text-white">Edit workspace</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
-
           {/* Name */}
           <div>
             <label className="mb-1.5 block text-xs font-medium text-slate-400">Name</label>
@@ -415,7 +428,9 @@ function EditWorkspaceModal({ workspace, usedShortcuts, onSave, onClose }: EditW
 
           {/* Icon */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-slate-400">Icon <span className="text-slate-600">(emoji)</span></label>
+            <label className="mb-1.5 block text-xs font-medium text-slate-400">
+              Icon <span className="text-slate-600">(emoji)</span>
+            </label>
             <input
               type="text"
               value={icon}
@@ -452,7 +467,9 @@ function EditWorkspaceModal({ workspace, usedShortcuts, onSave, onClose }: EditW
 
           {/* Shortcut key */}
           <div>
-            <label className="mb-2 block text-xs font-medium text-slate-400">Shortcut <span className="text-slate-600">(Ctrl+…)</span></label>
+            <label className="mb-2 block text-xs font-medium text-slate-400">
+              Shortcut <span className="text-slate-600">(Ctrl+…)</span>
+            </label>
             <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
@@ -470,7 +487,9 @@ function EditWorkspaceModal({ workspace, usedShortcuts, onSave, onClose }: EditW
                     disabled={taken}
                     onClick={() => setShortcutKey(shortcutKey === n ? null : n)}
                     className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
-                      shortcutKey === n ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                      shortcutKey === n
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
                     }`}
                   >
                     {n}
@@ -521,7 +540,10 @@ export function App() {
   const [showAddWorkspace, setShowAddWorkspace] = useState(false)
   const [addingTile, setAddingTile] = useState(false)
   // null = regular add, set = split a specific tile
-  const [splitTarget, setSplitTarget] = useState<{ tileId: string; direction: 'row' | 'column' } | null>(null)
+  const [splitTarget, setSplitTarget] = useState<{
+    tileId: string
+    direction: 'row' | 'column'
+  } | null>(null)
   const [toasts, setToasts] = useState<{ id: number; message: string }[]>([])
   const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null)
 
@@ -532,23 +554,6 @@ export function App() {
     setToasts((prev) => [...prev, { id, message }])
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 5000)
   }
-
-  useEffect(() => { isAuthenticated().then(setAuthed) }, [])
-  useEffect(() => { if (authed) loadWorkspaces() }, [authed])
-  useEffect(() => { if (activeId) loadTiles(activeId) }, [activeId])
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (!e.ctrlKey) return
-      const n = parseInt(e.key)
-      if (n >= 1 && n <= 9) {
-        const ws = workspaces.find((w) => w.shortcutKey === n) ?? workspaces[n - 1]
-        if (ws) { setActiveId(ws.id); e.preventDefault() }
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [workspaces])
 
   async function loadWorkspaces() {
     setLoading(true)
@@ -578,16 +583,41 @@ export function App() {
     }
   }
 
+  useEffect(() => {
+    isAuthenticated().then(setAuthed)
+  }, [])
+  useEffect(() => {
+    if (authed) loadWorkspaces()
+  }, [authed])
+  useEffect(() => {
+    if (activeId) loadTiles(activeId)
+  }, [activeId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!e.ctrlKey) return
+      const n = parseInt(e.key)
+      if (n >= 1 && n <= 9) {
+        const ws = workspaces.find((w) => w.shortcutKey === n) ?? workspaces[n - 1]
+        if (ws) {
+          setActiveId(ws.id)
+          e.preventDefault()
+        }
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [workspaces])
+
   function saveLayout(newLayout: LayoutNode | null, workspaceId: string) {
     setWorkspaces((prev) =>
       prev.map((w) => (w.id === workspaceId ? { ...w, layoutJson: newLayout } : w)),
     )
     // No updatedAt sent — layout conflicts are non-critical, skip stale check
-    api.patch(`/workspaces/${workspaceId}/layout`, { layoutJson: newLayout })
-      .catch((err) => {
-        console.error('Failed to save layout:', err)
-        showError(err instanceof ApiError ? err.message : 'Failed to save layout.')
-      })
+    api.patch(`/workspaces/${workspaceId}/layout`, { layoutJson: newLayout }).catch((err) => {
+      console.error('Failed to save layout:', err)
+      showError(err instanceof ApiError ? err.message : 'Failed to save layout.')
+    })
   }
 
   function handleLayoutChange(newLayout: LayoutNode) {
@@ -670,19 +700,23 @@ export function App() {
     setShowAddTile(true)
   }
 
-  const handleRemoveTile = useCallback(async (tileId: string) => {
-    if (!activeId) return
-    try {
-      await api.delete(`/workspaces/${activeId}/tiles/${tileId}`)
-      const newTiles = tiles.filter((t) => t.id !== tileId)
-      const newLayout = layout ? removeTileFromLayout(layout, tileId) : null
-      setTiles(newTiles)
-      setLayout(newLayout)
-      if (activeId) saveLayout(newLayout, activeId)
-    } catch (err) {
-      console.error('Failed to remove tile:', err)
-    }
-  }, [activeId, activeWorkspace, tiles, layout])
+  const handleRemoveTile = useCallback(
+    async (tileId: string) => {
+      if (!activeId) return
+      try {
+        await api.delete(`/workspaces/${activeId}/tiles/${tileId}`)
+        const newTiles = tiles.filter((t) => t.id !== tileId)
+        const newLayout = layout ? removeTileFromLayout(layout, tileId) : null
+        setTiles(newTiles)
+        setLayout(newLayout)
+        if (activeId) saveLayout(newLayout, activeId)
+      } catch (err) {
+        console.error('Failed to remove tile:', err)
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeId, activeWorkspace, tiles, layout],
+  )
 
   async function handleAddWorkspace(name: string) {
     setShowAddWorkspace(false)
@@ -712,7 +746,10 @@ export function App() {
   }
 
   async function handleEditWorkspace(data: {
-    name: string; icon: string | null; color: string | null; shortcutKey: number | null
+    name: string
+    icon: string | null
+    color: string | null
+    shortcutKey: number | null
   }) {
     if (!editingWorkspace) return
     const ws = workspaces.find((w) => w.id === editingWorkspace.id)
@@ -723,7 +760,7 @@ export function App() {
       updatedAt: ws.updatedAt,
     })
     setWorkspaces((prev) =>
-      prev.map((w) => w.id === ws.id ? { ...w, ...data, updatedAt: updated.updatedAt } : w),
+      prev.map((w) => (w.id === ws.id ? { ...w, ...data, updatedAt: updated.updatedAt } : w)),
     )
     setEditingWorkspace(null)
   }
@@ -787,7 +824,10 @@ export function App() {
             </button>
             {/* Edit button — top-left on hover */}
             <button
-              onClick={(e) => { e.stopPropagation(); setEditingWorkspace(ws) }}
+              onClick={(e) => {
+                e.stopPropagation()
+                setEditingWorkspace(ws)
+              }}
               title={`Edit ${ws.name}`}
               className="absolute -left-1 -top-1 hidden h-4 w-4 items-center justify-center rounded-full bg-slate-700 text-slate-400 ring-1 ring-slate-950 hover:bg-blue-600 hover:text-white group-hover/ws:flex"
             >
@@ -832,7 +872,10 @@ export function App() {
             {activeWorkspace?.name ?? 'FlowSpace'}
           </span>
           <button
-            onClick={() => { setSplitTarget(null); setShowAddTile(true) }}
+            onClick={() => {
+              setSplitTarget(null)
+              setShowAddTile(true)
+            }}
             disabled={addingTile || !activeId}
             className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
           >
@@ -849,8 +892,12 @@ export function App() {
                   <LayoutGrid size={28} className="text-blue-400" />
                 </div>
                 <div>
-                  <p className="mb-1 text-sm font-medium text-slate-300">Create your first workspace</p>
-                  <p className="text-xs text-slate-500">Organize websites into workspaces and tile them side-by-side</p>
+                  <p className="mb-1 text-sm font-medium text-slate-300">
+                    Create your first workspace
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Organize websites into workspaces and tile them side-by-side
+                  </p>
                 </div>
                 <button
                   onClick={() => setShowAddWorkspace(true)}
@@ -870,7 +917,10 @@ export function App() {
                   <p className="text-xs text-slate-500">Add your first tile to get started</p>
                 </div>
                 <button
-                  onClick={() => { setSplitTarget(null); setShowAddTile(true) }}
+                  onClick={() => {
+                    setSplitTarget(null)
+                    setShowAddTile(true)
+                  }}
                   className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-500"
                 >
                   <Plus size={14} />
@@ -891,31 +941,34 @@ export function App() {
       </main>
 
       {/* Modals */}
-      {showAddTile && (
-        splitTarget ? (
+      {showAddTile &&
+        (splitTarget ? (
           <AddTileModal
-            title={splitTarget.direction === 'row' ? 'Split right — add URL' : 'Split down — add URL'}
+            title={
+              splitTarget.direction === 'row' ? 'Split right — add URL' : 'Split down — add URL'
+            }
             onAdd={handleSplitTile}
-            onClose={() => { setShowAddTile(false); setSplitTarget(null) }}
+            onClose={() => {
+              setShowAddTile(false)
+              setSplitTarget(null)
+            }}
           />
         ) : (
-          <AddTileModal
-            onAdd={handleAddTile}
-            onClose={() => setShowAddTile(false)}
-          />
-        )
-      )}
+          <AddTileModal onAdd={handleAddTile} onClose={() => setShowAddTile(false)} />
+        ))}
       {showAddWorkspace && (
         <AddWorkspaceModal onAdd={handleAddWorkspace} onClose={() => setShowAddWorkspace(false)} />
       )}
       {editingWorkspace && (
         <EditWorkspaceModal
           workspace={editingWorkspace}
-          usedShortcuts={new Set(
-            workspaces
-              .filter((w) => w.id !== editingWorkspace.id && w.shortcutKey != null)
-              .map((w) => w.shortcutKey as number),
-          )}
+          usedShortcuts={
+            new Set(
+              workspaces
+                .filter((w) => w.id !== editingWorkspace.id && w.shortcutKey != null)
+                .map((w) => w.shortcutKey as number),
+            )
+          }
           onSave={handleEditWorkspace}
           onClose={() => setEditingWorkspace(null)}
         />

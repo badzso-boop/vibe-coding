@@ -169,12 +169,16 @@ function openFlowSpace() {
 }
 
 // Ctrl+Shift+D — works even if widget is dismissed
-document.addEventListener('keydown', (e) => {
-  if (e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
-    e.preventDefault()
-    openFlowSpace()
-  }
-}, true)
+document.addEventListener(
+  'keydown',
+  (e) => {
+    if (e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+      e.preventDefault()
+      openFlowSpace()
+    }
+  },
+  true,
+)
 
 if (!sessionStorage.getItem('fs-widget-dismissed')) {
   if (document.readyState === 'loading') {

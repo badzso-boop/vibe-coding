@@ -122,10 +122,7 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     // Remap layout_json and save
     const remappedLayout = remapLayout(template.layout_json as LayoutNode, idMapping)
-    await supabase
-      .from('workspaces')
-      .update({ layout_json: remappedLayout })
-      .eq('id', workspace.id)
+    await supabase.from('workspaces').update({ layout_json: remappedLayout }).eq('id', workspace.id)
   }
 
   // Increment template use_count

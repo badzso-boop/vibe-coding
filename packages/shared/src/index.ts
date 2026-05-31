@@ -140,4 +140,7 @@ export const TIER_LIMITS = {
     tilesPerWorkspace: Infinity,
     devices: 5,
   },
-} as const satisfies Record<Tier, { workspaces: number; tilesPerWorkspace: number; devices: number }>
+} as const satisfies Record<
+  Tier,
+  { workspaces: number; tilesPerWorkspace: number; devices: number }
+>

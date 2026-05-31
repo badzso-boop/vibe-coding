@@ -41,7 +41,9 @@ export default function LandingPage() {
           {/* Badge */}
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-4 py-1.5">
             <Star size={12} className="text-blue-400" />
-            <span className="text-xs font-medium text-blue-300">Browser Extension for Power Users</span>
+            <span className="text-xs font-medium text-blue-300">
+              Browser Extension for Power Users
+            </span>
           </div>
 
           {/* Headline */}
@@ -67,7 +69,10 @@ export default function LandingPage() {
             >
               <Download size={18} />
               Get started — it&apos;s free
-              <ChevronRight size={16} className="transition-transform group-hover:translate-x-0.5" />
+              <ChevronRight
+                size={16}
+                className="transition-transform group-hover:translate-x-0.5"
+              />
             </Link>
             <Link
               href="#how-it-works"
@@ -79,10 +84,18 @@ export default function LandingPage() {
 
           {/* Trust badges */}
           <div className="mt-10 flex flex-wrap items-center justify-center gap-6 text-xs text-slate-500">
-            <span className="flex items-center gap-1.5"><Check size={12} className="text-blue-500" /> Free forever plan</span>
-            <span className="flex items-center gap-1.5"><Check size={12} className="text-blue-500" /> Chrome, Firefox & Edge</span>
-            <span className="flex items-center gap-1.5"><Check size={12} className="text-blue-500" /> No account migration</span>
-            <span className="flex items-center gap-1.5"><Check size={12} className="text-blue-500" /> Open in seconds</span>
+            <span className="flex items-center gap-1.5">
+              <Check size={12} className="text-blue-500" /> Free forever plan
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Check size={12} className="text-blue-500" /> Chrome, Firefox & Edge
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Check size={12} className="text-blue-500" /> No account migration
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Check size={12} className="text-blue-500" /> Open in seconds
+            </span>
           </div>
 
           {/* Browser mockup */}
@@ -180,8 +193,7 @@ export default function LandingPage() {
             </div>
             <div className="absolute -bottom-4 -left-4 rounded-xl border border-white/10 bg-slate-800/90 px-3 py-2 text-xs font-medium text-slate-300 shadow-lg backdrop-blur">
               <div className="flex items-center gap-1.5">
-                <LayoutGrid size={12} className="text-blue-400" />
-                4 tiles, 1 workspace
+                <LayoutGrid size={12} className="text-blue-400" />4 tiles, 1 workspace
               </div>
             </div>
           </div>
@@ -192,8 +204,12 @@ export default function LandingPage() {
       <section id="features" className="py-32 px-6">
         <div className="mx-auto max-w-7xl">
           <div className="mb-16 text-center">
-            <p className="mb-3 text-sm font-medium uppercase tracking-widest text-blue-500">Features</p>
-            <h2 className="mb-4 text-4xl font-bold tracking-tight">Everything you need to stay in flow</h2>
+            <p className="mb-3 text-sm font-medium uppercase tracking-widest text-blue-500">
+              Features
+            </p>
+            <h2 className="mb-4 text-4xl font-bold tracking-tight">
+              Everything you need to stay in flow
+            </h2>
             <p className="mx-auto max-w-xl text-slate-400">
               Designed for developers, designers, and knowledge workers who live in their browser.
             </p>
@@ -217,7 +233,7 @@ export default function LandingPage() {
                 icon: Globe,
                 color: 'cyan',
                 title: 'Works with every site',
-                desc: "Sites that block iframes open as tab tiles with a floating sidebar. FlowSpace handles the technical details — you just browse.",
+                desc: 'Sites that block iframes open as tab tiles with a floating sidebar. FlowSpace handles the technical details — you just browse.',
               },
               {
                 icon: RefreshCw,
@@ -229,7 +245,7 @@ export default function LandingPage() {
                 icon: Shield,
                 color: 'sky',
                 title: 'Your browser stays yours',
-                desc: "No migration. No new browser. FlowSpace layers on top of Chrome, Firefox, or Edge — keeping all your passwords, history, and extensions.",
+                desc: 'No migration. No new browser. FlowSpace layers on top of Chrome, Firefox, or Edge — keeping all your passwords, history, and extensions.',
               },
               {
                 icon: Zap,
@@ -257,7 +273,9 @@ export default function LandingPage() {
       <section id="how-it-works" className="py-32 px-6">
         <div className="mx-auto max-w-5xl">
           <div className="mb-16 text-center">
-            <p className="mb-3 text-sm font-medium uppercase tracking-widest text-blue-500">Setup</p>
+            <p className="mb-3 text-sm font-medium uppercase tracking-widest text-blue-500">
+              Setup
+            </p>
             <h2 className="mb-4 text-4xl font-bold tracking-tight">Up and running in 60 seconds</h2>
             <p className="mx-auto max-w-xl text-slate-400">
               No complex configuration. No migration wizard. Install, create a workspace, and go.
@@ -306,7 +324,9 @@ export default function LandingPage() {
       <section id="pricing" className="py-32 px-6">
         <div className="mx-auto max-w-4xl">
           <div className="mb-16 text-center">
-            <p className="mb-3 text-sm font-medium uppercase tracking-widest text-blue-500">Pricing</p>
+            <p className="mb-3 text-sm font-medium uppercase tracking-widest text-blue-500">
+              Pricing
+            </p>
             <h2 className="mb-4 text-4xl font-bold tracking-tight">Simple, honest pricing</h2>
             <p className="mx-auto max-w-xl text-slate-400">
               Start free. Upgrade when you need more workspaces, devices, or templates.
@@ -322,7 +342,9 @@ export default function LandingPage() {
                   <span className="text-5xl font-bold">€0</span>
                   <span className="mb-2 text-slate-400">/month</span>
                 </div>
-                <p className="mt-2 text-sm text-slate-500">Forever free. No credit card required.</p>
+                <p className="mt-2 text-sm text-slate-500">
+                  Forever free. No credit card required.
+                </p>
               </div>
 
               <Link
@@ -363,7 +385,9 @@ export default function LandingPage() {
                   <span className="text-5xl font-bold">€9</span>
                   <span className="mb-2 text-blue-300">/month</span>
                 </div>
-                <p className="mt-2 text-sm text-blue-400/70">Everything you need for serious work.</p>
+                <p className="mt-2 text-sm text-blue-400/70">
+                  Everything you need for serious work.
+                </p>
               </div>
 
               <Link
@@ -405,7 +429,8 @@ export default function LandingPage() {
               Ready to take control of your browser?
             </h2>
             <p className="mx-auto mb-8 max-w-md text-slate-400">
-              Join thousands of developers and designers who have already organized their digital workspace.
+              Join thousands of developers and designers who have already organized their digital
+              workspace.
             </p>
             <Link
               href="/auth/register"
@@ -434,9 +459,15 @@ export default function LandingPage() {
               <span className="text-sm font-semibold text-white">FlowSpace</span>
             </div>
             <div className="flex gap-6 text-sm text-slate-500">
-              <Link href="/auth/login" className="hover:text-white transition-colors">Sign in</Link>
-              <Link href="/auth/register" className="hover:text-white transition-colors">Sign up</Link>
-              <Link href="#pricing" className="hover:text-white transition-colors">Pricing</Link>
+              <Link href="/auth/login" className="hover:text-white transition-colors">
+                Sign in
+              </Link>
+              <Link href="/auth/register" className="hover:text-white transition-colors">
+                Sign up
+              </Link>
+              <Link href="#pricing" className="hover:text-white transition-colors">
+                Pricing
+              </Link>
             </div>
             <p className="text-sm text-slate-600">© 2025 FlowSpace. All rights reserved.</p>
           </div>

@@ -6,7 +6,9 @@ export const metadata = { title: 'Billing' }
 
 export default async function BillingPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
   const { data: subscription } = await supabase
@@ -29,10 +31,14 @@ export default async function BillingPage() {
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <span className="rounded-full bg-blue-600 px-2.5 py-0.5 text-xs font-semibold text-white">Pro</span>
+                <span className="rounded-full bg-blue-600 px-2.5 py-0.5 text-xs font-semibold text-white">
+                  Pro
+                </span>
                 <span className="text-sm text-slate-500 capitalize">{subscription?.status}</span>
               </div>
-              <p className="mt-2 text-2xl font-bold text-slate-900">€9 <span className="text-base font-normal text-slate-500">/ month</span></p>
+              <p className="mt-2 text-2xl font-bold text-slate-900">
+                €9 <span className="text-base font-normal text-slate-500">/ month</span>
+              </p>
               {subscription?.current_period_end && (
                 <p className="mt-1 text-sm text-slate-500">
                   Next billing date:{' '}
@@ -71,7 +77,9 @@ export default async function BillingPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-lg font-bold text-slate-900">Pro</span>
-                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">Most popular</span>
+                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                    Most popular
+                  </span>
                 </div>
                 <div className="mt-1 flex items-end gap-1">
                   <span className="text-3xl font-bold text-slate-900">€9</span>
@@ -100,7 +108,10 @@ export default async function BillingPage() {
             <div className="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3">
               <p className="text-sm text-slate-600">
                 Stripe checkout coming soon. To upgrade now, contact us at{' '}
-                <a href="mailto:support@flowspace.io" className="font-medium text-blue-600 hover:underline">
+                <a
+                  href="mailto:support@flowspace.io"
+                  className="font-medium text-blue-600 hover:underline"
+                >
                   support@flowspace.io
                 </a>
               </p>

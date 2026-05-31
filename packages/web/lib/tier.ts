@@ -3,10 +3,7 @@ import { TIER_LIMITS } from '@flowspace/shared'
 import { Errors } from './response'
 import type { NextResponse } from 'next/server'
 
-async function getUserTier(
-  supabase: SupabaseClient,
-  userId: string,
-): Promise<'free' | 'pro'> {
+async function getUserTier(supabase: SupabaseClient, userId: string): Promise<'free' | 'pro'> {
   const { data } = await supabase
     .from('subscriptions')
     .select('tier')

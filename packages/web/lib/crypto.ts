@@ -21,10 +21,7 @@ export function encrypt(plaintext: string): string {
   const iv = randomBytes(12) // 96-bit IV recommended for GCM
   const cipher = createCipheriv(ALGORITHM, key, iv)
 
-  const encrypted = Buffer.concat([
-    cipher.update(plaintext, 'utf8'),
-    cipher.final(),
-  ])
+  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()])
   const tag = cipher.getAuthTag()
 
   const payload: EncryptedPayload = {
@@ -43,8 +40,5 @@ export function decrypt(ciphertext: string): string {
   const decipher = createDecipheriv(ALGORITHM, key, Buffer.from(iv, 'hex'))
   decipher.setAuthTag(Buffer.from(tag, 'hex'))
 
-  return (
-    decipher.update(Buffer.from(encrypted, 'hex')).toString('utf8') +
-    decipher.final('utf8')
-  )
+  return decipher.update(Buffer.from(encrypted, 'hex')).toString('utf8') + decipher.final('utf8')
 }

@@ -16,8 +16,22 @@ import { GET } from '@/app/api/v1/devices/route'
 import { POST } from '@/app/api/v1/auth/extension/logout/route'
 
 const mockDevices = [
-  { id: 'device-1', name: 'Chrome Extension', browser: 'chrome', last_seen_at: '2024-01-10T00:00:00+00:00', created_at: '2024-01-01T00:00:00+00:00', is_revoked: false },
-  { id: 'device-2', name: 'Firefox Extension', browser: 'firefox', last_seen_at: null, created_at: '2024-01-02T00:00:00+00:00', is_revoked: false },
+  {
+    id: 'device-1',
+    name: 'Chrome Extension',
+    browser: 'chrome',
+    last_seen_at: '2024-01-10T00:00:00+00:00',
+    created_at: '2024-01-01T00:00:00+00:00',
+    is_revoked: false,
+  },
+  {
+    id: 'device-2',
+    name: 'Firefox Extension',
+    browser: 'firefox',
+    last_seen_at: null,
+    created_at: '2024-01-02T00:00:00+00:00',
+    is_revoked: false,
+  },
 ]
 
 beforeEach(() => {
@@ -43,7 +57,7 @@ describe('GET /api/v1/devices', () => {
     const req = new NextRequest('http://localhost:3001/api/v1/devices')
     const res = await GET(req)
     expect(res.status).toBe(200)
-    const body = await res.json() as { data: Array<{ id: string; isCurrent: boolean }> }
+    const body = (await res.json()) as { data: Array<{ id: string; isCurrent: boolean }> }
     expect(body.data).toHaveLength(2)
     // AUTH_CTX.ctx.deviceId = 'device-uuid-1' — neither device matches, so none is current
     expect(body.data.every((d) => !d.isCurrent)).toBe(true)
@@ -60,7 +74,7 @@ describe('GET /api/v1/devices', () => {
     )
     const req = new NextRequest('http://localhost:3001/api/v1/devices')
     const res = await GET(req)
-    const body = await res.json() as { data: Array<{ id: string; isCurrent: boolean }> }
+    const body = (await res.json()) as { data: Array<{ id: string; isCurrent: boolean }> }
     const current = body.data.find((d) => d.isCurrent)
     expect(current?.id).toBe('device-1')
   })
@@ -74,7 +88,9 @@ describe('POST /api/v1/auth/extension/logout', () => {
       error: null,
     } as never)
     vi.mocked(createServiceClient).mockReturnValue(makeSupabase() as never)
-    const req = new NextRequest('http://localhost:3001/api/v1/auth/extension/logout', { method: 'POST' })
+    const req = new NextRequest('http://localhost:3001/api/v1/auth/extension/logout', {
+      method: 'POST',
+    })
     const res = await POST(req)
     expect(res.status).toBe(400)
   })
@@ -83,7 +99,9 @@ describe('POST /api/v1/auth/extension/logout', () => {
     vi.mocked(createServiceClient).mockReturnValue(
       makeSupabase({ tables: { devices: { data: null, error: null } } }) as never,
     )
-    const req = new NextRequest('http://localhost:3001/api/v1/auth/extension/logout', { method: 'POST' })
+    const req = new NextRequest('http://localhost:3001/api/v1/auth/extension/logout', {
+      method: 'POST',
+    })
     const res = await POST(req)
     expect(res.status).toBe(204)
   })

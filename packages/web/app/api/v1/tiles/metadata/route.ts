@@ -37,11 +37,9 @@ function extractTitle(html: string): string | null {
 
 function extractFavicon(html: string, origin: string): string | null {
   // Try <link rel="icon"> or <link rel="shortcut icon">
-  const iconMatch = html.match(
-    /<link[^>]+rel=["'](?:shortcut )?icon["'][^>]+href=["']([^"']+)["']/i,
-  ) ?? html.match(
-    /<link[^>]+href=["']([^"']+)["'][^>]+rel=["'](?:shortcut )?icon["']/i,
-  )
+  const iconMatch =
+    html.match(/<link[^>]+rel=["'](?:shortcut )?icon["'][^>]+href=["']([^"']+)["']/i) ??
+    html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["'](?:shortcut )?icon["']/i)
 
   if (iconMatch) {
     const href = iconMatch[1]

@@ -100,9 +100,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   if (!tile) return Errors.tileNotFound()
 
   if (tile.is_pinned && !force) {
-    return Errors.badRequest(
-      'This tile is pinned. Add ?force=true to delete it anyway.',
-    )
+    return Errors.badRequest('This tile is pinned. Add ?force=true to delete it anyway.')
   }
 
   const { error } = await supabase.from('tiles').delete().eq('id', tileId)

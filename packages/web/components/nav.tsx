@@ -14,13 +14,22 @@ export function Nav() {
         <Logo />
 
         <div className="hidden items-center gap-8 md:flex">
-          <Link href="#features" className="text-sm text-slate-400 transition-colors hover:text-white">
+          <Link
+            href="#features"
+            className="text-sm text-slate-400 transition-colors hover:text-white"
+          >
             Features
           </Link>
-          <Link href="#how-it-works" className="text-sm text-slate-400 transition-colors hover:text-white">
+          <Link
+            href="#how-it-works"
+            className="text-sm text-slate-400 transition-colors hover:text-white"
+          >
             How it works
           </Link>
-          <Link href="#pricing" className="text-sm text-slate-400 transition-colors hover:text-white">
+          <Link
+            href="#pricing"
+            className="text-sm text-slate-400 transition-colors hover:text-white"
+          >
             Pricing
           </Link>
         </div>
@@ -51,12 +60,31 @@ export function Nav() {
       {open && (
         <div className="border-t border-white/5 bg-slate-950 px-6 py-4 md:hidden">
           <div className="flex flex-col gap-4">
-            <Link href="#features" className="text-sm text-slate-400" onClick={() => setOpen(false)}>Features</Link>
-            <Link href="#how-it-works" className="text-sm text-slate-400" onClick={() => setOpen(false)}>How it works</Link>
-            <Link href="#pricing" className="text-sm text-slate-400" onClick={() => setOpen(false)}>Pricing</Link>
+            <Link
+              href="#features"
+              className="text-sm text-slate-400"
+              onClick={() => setOpen(false)}
+            >
+              Features
+            </Link>
+            <Link
+              href="#how-it-works"
+              className="text-sm text-slate-400"
+              onClick={() => setOpen(false)}
+            >
+              How it works
+            </Link>
+            <Link href="#pricing" className="text-sm text-slate-400" onClick={() => setOpen(false)}>
+              Pricing
+            </Link>
             <hr className="border-white/10" />
-            <Link href="/auth/login" className="text-sm text-slate-400">Sign in</Link>
-            <Link href="/auth/register" className="rounded-lg bg-blue-600 px-4 py-2 text-center text-sm font-medium text-white">
+            <Link href="/auth/login" className="text-sm text-slate-400">
+              Sign in
+            </Link>
+            <Link
+              href="/auth/register"
+              className="rounded-lg bg-blue-600 px-4 py-2 text-center text-sm font-medium text-white"
+            >
               Get started free
             </Link>
           </div>

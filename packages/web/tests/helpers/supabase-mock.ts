@@ -55,11 +55,13 @@ export function makeChain(result: QueryResult = {}) {
  *     workspaces: [{ data: myWorkspace }, { error: { message: 'fail' } }],
  *   })
  */
-export function makeSupabase(options: {
-  tables?: Record<string, QueryResult | QueryResult[]>
-  authUser?: { id: string; email: string } | null
-  authError?: { message: string } | null
-} = {}) {
+export function makeSupabase(
+  options: {
+    tables?: Record<string, QueryResult | QueryResult[]>
+    authUser?: { id: string; email: string } | null
+    authError?: { message: string } | null
+  } = {},
+) {
   const { tables = {}, authUser = null, authError = null } = options
   const callCounts: Record<string, number> = {}
 

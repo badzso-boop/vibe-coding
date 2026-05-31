@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { LayoutGrid, LogIn, LogOut, Loader2, ExternalLink } from 'lucide-react'
-import { storage, isAuthenticated, type AuthData } from '@/lib/storage'
+import { storage, isAuthenticated } from '@/lib/storage'
 import { api } from '@/lib/api'
 
 type Status = 'loading' | 'unauthenticated' | 'authenticated'
@@ -17,6 +17,21 @@ export function App() {
   const [status, setStatus] = useState<Status>('loading')
   const [userEmail, setUserEmail] = useState<string | null>(null)
 
+  async function checkAuth() {
+    const ok = await isAuthenticated()
+    if (!ok) {
+      setStatus('unauthenticated')
+      setUserEmail(null)
+      return
+    }
+    setStatus('authenticated')
+    // Fetch user email in the background — non-blocking
+    api
+      .get<{ email: string }>('/users/me')
+      .then((u) => setUserEmail(u.email))
+      .catch(() => null)
+  }
+
   useEffect(() => {
     checkAuth()
 
@@ -28,20 +43,6 @@ export function App() {
     })
     return unsub
   }, [])
-
-  async function checkAuth() {
-    const ok = await isAuthenticated()
-    if (!ok) {
-      setStatus('unauthenticated')
-      setUserEmail(null)
-      return
-    }
-    setStatus('authenticated')
-    // Fetch user email in the background — non-blocking
-    api.get<{ email: string }>('/users/me')
-      .then((u) => setUserEmail(u.email))
-      .catch(() => null)
-  }
 
   function handleSignIn() {
     const state = generateState()
@@ -91,9 +92,7 @@ export function App() {
 
       {/* Content */}
       <div className="flex flex-1 flex-col items-center justify-center px-6">
-        {status === 'loading' && (
-          <Loader2 size={24} className="animate-spin text-slate-500" />
-        )}
+        {status === 'loading' && <Loader2 size={24} className="animate-spin text-slate-500" />}
 
         {status === 'unauthenticated' && (
           <div className="w-full text-center">

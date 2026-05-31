@@ -7,7 +7,9 @@ export const metadata = { title: 'Dashboard' }
 
 export default async function DashboardPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
   // Fetch subscription and usage in parallel
@@ -17,14 +19,8 @@ export default async function DashboardPage() {
       .select('tier, status, current_period_end')
       .eq('user_id', user.id)
       .single(),
-    supabase
-      .from('workspaces')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id),
-    supabase
-      .from('devices')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id),
+    supabase.from('workspaces').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+    supabase.from('devices').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
   ])
 
   const subscription = subscriptionResult.data
@@ -33,43 +29,45 @@ export default async function DashboardPage() {
   const workspaceCount = workspacesResult.count ?? 0
   const deviceCount = devicesResult.count ?? 0
 
-  const limits = isPro
-    ? { workspaces: '∞', devices: 5 }
-    : { workspaces: 1, devices: 1 }
+  const limits = isPro ? { workspaces: '∞', devices: 5 } : { workspaces: 1, devices: 1 }
 
   const displayName = user.user_metadata?.full_name
     ? (user.user_metadata.full_name as string).split(' ')[0]
-    : user.email?.split('@')[0] ?? 'there'
+    : (user.email?.split('@')[0] ?? 'there')
 
   return (
     <div className="max-w-4xl">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">
-          Hi, {displayName} 👋
-        </h1>
+        <h1 className="text-2xl font-bold text-slate-900">Hi, {displayName} 👋</h1>
         <p className="mt-1 text-slate-500">Here&apos;s your FlowSpace overview.</p>
       </div>
 
       {/* Plan card */}
-      <div className={`mb-6 overflow-hidden rounded-2xl border p-6 ${
-        isPro
-          ? 'border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50'
-          : 'border-slate-200 bg-white'
-      }`}>
+      <div
+        className={`mb-6 overflow-hidden rounded-2xl border p-6 ${
+          isPro
+            ? 'border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50'
+            : 'border-slate-200 bg-white'
+        }`}
+      >
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                isPro
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-100 text-slate-700'
-              }`}>
+              <span
+                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                  isPro ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'
+                }`}
+              >
                 {isPro ? 'Pro' : 'Free'}
               </span>
               {isPro && subscription?.current_period_end && (
                 <span className="text-xs text-slate-500">
-                  Renews {new Date(subscription.current_period_end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  Renews{' '}
+                  {new Date(subscription.current_period_end).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  })}
                 </span>
               )}
             </div>
@@ -117,7 +115,10 @@ export default async function DashboardPage() {
             <span className="mb-0.5 text-sm text-slate-400">/ {limits.devices}</span>
           </div>
           {deviceCount > 0 && (
-            <Link href="/dashboard/devices" className="mt-2 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-500">
+            <Link
+              href="/dashboard/devices"
+              className="mt-2 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-500"
+            >
               Manage <ArrowRight size={11} />
             </Link>
           )}
