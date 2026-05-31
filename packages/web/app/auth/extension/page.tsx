@@ -112,15 +112,31 @@ function ExtensionAuthContent() {
           setTimeout(() => window.close(), 2000)
         })
       } else {
-        // Firefox fallback — post only to our own origin, not '*'
-        if (window.opener) {
-          window.opener.postMessage({ type: 'FLOWSPACE_AUTH_CODE', code, state }, window.location.origin)
-        }
+        // Firefox: relay via content script postMessage (auth-relay.ts)
+        await new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(() => {
+            window.removeEventListener('message', onRelayDone)
+            reject(new Error('Extension relay timed out. Make sure FlowSpace is installed and reload it.'))
+          }, 6000)
+
+          function onRelayDone(e: MessageEvent) {
+            if (e.origin !== window.location.origin) return
+            if ((e.data as { type?: string } | null)?.type !== 'FLOWSPACE_AUTH_RELAY_DONE') return
+            clearTimeout(timer)
+            window.removeEventListener('message', onRelayDone)
+            const d = e.data as { ok: boolean; error?: string }
+            if (d.ok) resolve()
+            else reject(new Error(d.error ?? 'Auth relay failed'))
+          }
+
+          window.addEventListener('message', onRelayDone)
+          window.postMessage({ type: 'FLOWSPACE_AUTH_RELAY', code, state }, window.location.origin)
+        })
         setStep('success')
         setTimeout(() => window.close(), 2000)
       }
-    } catch {
-      setError('Could not communicate with the extension. Please try again.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not communicate with the extension. Please try again.')
       setStep('error')
     }
   }

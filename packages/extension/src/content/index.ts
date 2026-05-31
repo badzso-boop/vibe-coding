@@ -1,3 +1,5 @@
+import browser from '@/lib/browser'
+
 const HOST_ID = 'flowspace-widget-host'
 
 function createWidget() {
@@ -161,7 +163,9 @@ function createWidget() {
 }
 
 function openFlowSpace() {
-  chrome.runtime.sendMessage({ type: 'OPEN_FLOWSPACE_APP' })
+  browser.runtime.sendMessage({ type: 'OPEN_FLOWSPACE_APP' }).catch(() => {
+    // Extension context may be invalidated — silently ignore
+  })
 }
 
 // Ctrl+Shift+D — works even if widget is dismissed
@@ -172,7 +176,6 @@ document.addEventListener('keydown', (e) => {
   }
 }, true)
 
-// Don't show if already dismissed this session
 if (!sessionStorage.getItem('fs-widget-dismissed')) {
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', createWidget)

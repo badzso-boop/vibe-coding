@@ -69,9 +69,8 @@ export async function POST(request: NextRequest) {
   // Check device limit — if at limit, try to reclaim a never-activated device
   const limitError = await checkDeviceLimit(supabase, record.user_id)
   if (limitError) {
-    // Attempt to remove a device that was registered but never used (last_seen_at is null),
-    // which can happen when a previous auth attempt failed mid-flow.
-    const { data: stale } = await supabase
+    // 1. Clean up a device that was registered but never activated (failed mid-flow)
+    const { data: neverUsed } = await supabase
       .from('devices')
       .select('id')
       .eq('user_id', record.user_id)
@@ -80,10 +79,36 @@ export async function POST(request: NextRequest) {
       .limit(1)
       .maybeSingle()
 
-    if (stale) {
-      await supabase.from('devices').delete().eq('id', stale.id)
+    if (neverUsed) {
+      await supabase.from('devices').delete().eq('id', neverUsed.id)
     } else {
-      return limitError
+      // 2. For free tier (limit = 1): auto-revoke the oldest device so re-installing
+      //    the extension doesn't permanently lock users out.
+      const { data: sub } = await supabase
+        .from('subscriptions')
+        .select('tier')
+        .eq('user_id', record.user_id)
+        .maybeSingle()
+      const tier = (sub?.tier as string | null) ?? 'free'
+
+      if (tier === 'free') {
+        const { data: oldest } = await supabase
+          .from('devices')
+          .select('id')
+          .eq('user_id', record.user_id)
+          .eq('is_revoked', false)
+          .order('last_seen_at', { ascending: true, nullsFirst: true })
+          .limit(1)
+          .maybeSingle()
+
+        if (oldest) {
+          await supabase.from('devices').delete().eq('id', oldest.id)
+        } else {
+          return limitError
+        }
+      } else {
+        return limitError
+      }
     }
   }
 

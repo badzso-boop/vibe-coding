@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS public.users (
   avatar_url      TEXT,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  last_login_at   TIMESTAMPTZ
+  last_login_at   TIMESTAMPTZ,
+  is_admin        BOOLEAN     NOT NULL DEFAULT FALSE
 );
 
 -- ─── Subscriptions ────────────────────────────────────────────────────────────

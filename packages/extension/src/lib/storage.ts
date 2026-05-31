@@ -1,3 +1,5 @@
+import browser from './browser'
+
 export interface AuthData {
   accessToken: string
   refreshToken: string
@@ -13,39 +15,40 @@ export interface StorageSchema {
 
 export const storage = {
   async get<K extends keyof StorageSchema>(key: K): Promise<StorageSchema[K]> {
-    const result = await chrome.storage.local.get(key)
+    const result = await browser.storage.local.get(key)
     return result[key] as StorageSchema[K]
   },
 
   async set<K extends keyof StorageSchema>(key: K, value: StorageSchema[K]): Promise<void> {
-    await chrome.storage.local.set({ [key]: value })
+    await browser.storage.local.set({ [key]: value })
   },
 
   async remove(key: keyof StorageSchema): Promise<void> {
-    await chrome.storage.local.remove(key)
+    await browser.storage.local.remove(key)
   },
 
   async clear(): Promise<void> {
-    await chrome.storage.local.clear()
+    await browser.storage.local.clear()
   },
 
   onChange(callback: (changes: Partial<StorageSchema>) => void): () => void {
-    const listener = (changes: Record<string, chrome.storage.StorageChange>) => {
+    type ChangeMap = Record<string, { oldValue?: unknown; newValue?: unknown }>
+    const listener = (changes: ChangeMap) => {
       const mapped: Partial<StorageSchema> = {}
       for (const key of Object.keys(changes) as Array<keyof StorageSchema>) {
-        mapped[key] = changes[key].newValue
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        mapped[key] = changes[key].newValue as any
       }
       callback(mapped)
     }
-    chrome.storage.local.onChanged.addListener(listener)
-    return () => chrome.storage.local.onChanged.removeListener(listener)
+    browser.storage.local.onChanged.addListener(listener)
+    return () => browser.storage.local.onChanged.removeListener(listener)
   },
 }
 
 export async function getAuth(): Promise<AuthData | null> {
   const auth = await storage.get('auth')
   if (!auth) return null
-  // Consider token expired 60s early to avoid edge cases
   if (Date.now() >= auth.expiresAt - 60_000) return null
   return auth
 }

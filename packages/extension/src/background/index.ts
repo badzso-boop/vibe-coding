@@ -1,57 +1,65 @@
+import browser from '@/lib/browser'
 import { storage } from '@/lib/storage'
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
 
-chrome.runtime.onInstalled.addListener(() => {
+browser.runtime.onInstalled.addListener(() => {
   console.log('[FlowSpace] Extension installed')
 })
 
-// Content script asks us to open/focus the FlowSpace app tab
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type !== 'OPEN_FLOWSPACE_APP') return
+// Handle messages from content scripts (OPEN_FLOWSPACE_APP + Firefox auth relay)
+browser.runtime.onMessage.addListener(async (message: unknown) => {
+  const msg = message as Record<string, unknown> | null
 
-  const appUrl = chrome.runtime.getURL('src/app/index.html')
-
-  chrome.tabs.query({}, (tabs) => {
+  if (msg?.type === 'OPEN_FLOWSPACE_APP') {
+    const appUrl = browser.runtime.getURL('src/app/index.html')
+    const tabs = await browser.tabs.query({})
     const existing = tabs.find((t) => t.url?.startsWith(appUrl))
     if (existing?.id != null) {
-      chrome.tabs.update(existing.id, { active: true })
+      await browser.tabs.update(existing.id, { active: true })
       if (existing.windowId != null) {
-        chrome.windows.update(existing.windowId, { focused: true })
+        await browser.windows.update(existing.windowId, { focused: true })
       }
     } else {
-      chrome.tabs.create({ url: appUrl })
+      await browser.tabs.create({ url: appUrl })
     }
-    sendResponse({ ok: true })
-  })
-
-  return true // keep channel open for async response
-})
-
-// Web app sends the one-time auth code here after the user logs in
-chrome.runtime.onMessageExternal.addListener((message, _sender, sendResponse) => {
-  if (message?.type !== 'FLOWSPACE_AUTH_CODE') return
-
-  const { code, state } = message as { type: string; code: string; state: string }
-  if (!code || !state) {
-    sendResponse({ ok: false, error: 'Missing code or state' })
-    return
+    return { ok: true }
   }
 
-  // Must return true to keep the channel open for the async response
-  exchangeCode(code, state)
-    .then(() => sendResponse({ ok: true }))
-    .catch((err) => sendResponse({ ok: false, error: String(err) }))
-
-  return true
+  // Firefox auth relay: content script forwards the one-time code from the web page
+  if (msg?.type === 'FLOWSPACE_AUTH_CODE') {
+    const code = msg.code as string
+    const state = msg.state as string
+    try {
+      await exchangeCode(code, state)
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: String(err) }
+    }
+  }
 })
+
+// Chrome-only: web page sends auth code directly via externally_connectable
+if (browser.runtime.onMessageExternal) {
+  browser.runtime.onMessageExternal.addListener(async (message: unknown) => {
+    const msg = message as Record<string, unknown> | null
+    if (msg?.type !== 'FLOWSPACE_AUTH_CODE') return
+    const code = msg.code as string
+    const state = msg.state as string
+    try {
+      await exchangeCode(code, state)
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: String(err) }
+    }
+  })
+}
 
 function parseJwtExpiry(jwt: string): number {
   try {
-    const payload = JSON.parse(atob(jwt.split('.')[1]))
-    return (payload.exp as number) * 1000
+    const payload = JSON.parse(atob(jwt.split('.')[1])) as { exp: number }
+    return payload.exp * 1000
   } catch {
-    // Fallback: 1 hour from now
     return Date.now() + 3_600_000
   }
 }
@@ -64,11 +72,11 @@ async function exchangeCode(code: string, state: string): Promise<void> {
   })
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
+    const body = await res.json().catch(() => ({})) as { message?: string }
     throw new Error(body.message ?? `Exchange failed: ${res.status}`)
   }
 
-  const { data } = await res.json() as {
+  const { data } = (await res.json()) as {
     data: {
       accessToken: string
       refreshToken: string

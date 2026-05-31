@@ -58,7 +58,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 }
 
 const patchSchema = z.object({
-  updatedAt: z.string().datetime(),
+  updatedAt: z.string(),
   name: z.string().min(1).max(255).optional(),
   icon: z.string().max(50).nullable().optional(),
   color: z

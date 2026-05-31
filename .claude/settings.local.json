@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(pnpm dev *)"
+      "Bash(pnpm dev *)",
+      "Bash(pnpm --filter web build)",
+      "Bash(npx tsc *)",
+      "Bash(npx next *)"
     ]
   }
 }

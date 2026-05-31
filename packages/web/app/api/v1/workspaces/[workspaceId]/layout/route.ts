@@ -24,7 +24,7 @@ const layoutNodeSchema: z.ZodType<unknown> = z.lazy(() =>
 )
 
 const schema = z.object({
-  updatedAt: z.string().datetime(),
+  updatedAt: z.string().optional(),
   layoutJson: layoutNodeSchema.nullable(),
 })
 
@@ -52,7 +52,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   if (!current) return Errors.workspaceNotFound()
 
-  if (current.updated_at !== body.updatedAt) {
+  if (body.updatedAt && current.updated_at !== body.updatedAt) {
     return Errors.staleData(current.updated_at)
   }
 

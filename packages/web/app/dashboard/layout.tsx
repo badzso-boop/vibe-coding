@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { LayoutGrid, Monitor, CreditCard, LogOut } from 'lucide-react'
+import { LayoutGrid, Monitor, CreditCard, LogOut, ShieldCheck } from 'lucide-react'
 import { createClient } from '@/utils/supabase/server'
+import { createServiceClient } from '@/lib/supabase'
 import { Logo } from '@/components/logo'
 
 async function SignOutButton() {
@@ -25,6 +26,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!user) {
     redirect('/auth/login?next=/dashboard')
   }
+
+  const service = createServiceClient()
+  const { data: profile } = await service
+    .from('users')
+    .select('is_admin')
+    .eq('id', user.id)
+    .maybeSingle()
 
   const navItems = [
     { href: '/dashboard', label: 'Overview', icon: LayoutGrid },
@@ -57,6 +65,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <div className="mb-2 rounded-lg bg-slate-50 px-3 py-2">
             <p className="text-xs font-medium text-slate-900 truncate">{user.email}</p>
           </div>
+          {profile?.is_admin && (
+            <Link
+              href="/admin/users"
+              className="mb-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+            >
+              <ShieldCheck size={15} />
+              Admin Panel
+            </Link>
+          )}
           <SignOutButton />
         </div>
       </aside>
