@@ -103,7 +103,7 @@ function ExtensionAuthContent() {
         chrome.runtime.sendMessage(
           extensionId,
           { type: 'FLOWSPACE_AUTH_CODE', code, state },
-          (response) => {
+          (response: unknown) => {
             // @ts-expect-error
             const lastError = chrome.runtime.lastError
             if (lastError) {
