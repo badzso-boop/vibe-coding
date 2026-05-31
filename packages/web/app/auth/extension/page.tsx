@@ -113,8 +113,9 @@ function ExtensionAuthContent() {
               setStep('error')
               return
             }
-            if (response?.ok === false) {
-              setError(response.error ?? 'Authorization failed. Please try again.')
+            const res = response as { ok?: boolean; error?: string } | null
+            if (res?.ok === false) {
+              setError(res.error ?? 'Authorization failed. Please try again.')
               setStep('error')
               return
             }
