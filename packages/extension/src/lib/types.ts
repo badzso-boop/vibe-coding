@@ -35,3 +35,10 @@ export interface Favorite {
   title: string | null
   faviconUrl: string | null
 }
+
+export interface TilePage {
+  url: string
+  title: string | null
+  faviconUrl: string | null
+  openMode: 'iframe' | 'tab'
+}

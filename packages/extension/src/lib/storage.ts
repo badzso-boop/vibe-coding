@@ -1,5 +1,5 @@
 import browser from './browser'
-import type { PoppedTab, Favorite } from './types'
+import type { PoppedTab, Favorite, TilePage } from './types'
 
 export interface AuthData {
   accessToken: string
@@ -14,6 +14,7 @@ export interface StorageSchema {
   activeWorkspaceId?: string | null
   poppedTabs?: PoppedTab[]
   favorites?: Favorite[]
+  tileExtraPages?: Record<string, TilePage[]>
 }
 
 export const storage = {

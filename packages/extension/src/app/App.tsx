@@ -10,10 +10,11 @@ import {
   Pencil,
   ExternalLink,
   Star,
+  Files,
 } from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
 import { isAuthenticated, storage } from '@/lib/storage'
-import type { Workspace, Tile, PoppedTab, Favorite } from '@/lib/types'
+import type { Workspace, Tile, PoppedTab, Favorite, TilePage } from '@/lib/types'
 import type { LayoutNode } from '@flowspace/shared'
 import browser from '@/lib/browser'
 
@@ -78,100 +79,208 @@ function SplitDownIcon() {
   )
 }
 
+// ─── IframeView — isolated so loading resets on url change via key ───────────
+
+function IframeView({ url, title }: { url: string; title: string }) {
+  const [loading, setLoading] = useState(true)
+  return (
+    <>
+      {loading && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900">
+          <Loader2 size={20} className="animate-spin text-slate-600" />
+        </div>
+      )}
+      <iframe
+        src={url}
+        className="flex-1 border-none bg-white"
+        onLoad={() => setLoading(false)}
+        title={title}
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-top-navigation-by-user-activation"
+      />
+    </>
+  )
+}
+
+// ─── Tooltip ──────────────────────────────────────────────────────────────────
+
+function Tooltip({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <span className="group/tip relative inline-flex">
+      {children}
+      <span className="pointer-events-none absolute top-full left-1/2 z-50 mt-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-slate-700 px-2 py-1 text-[10px] text-white opacity-0 shadow-lg transition-opacity delay-300 group-hover/tip:opacity-100">
+        {label}
+      </span>
+    </span>
+  )
+}
+
 // ─── Tile view ────────────────────────────────────────────────────────────────
 
 interface TileViewProps {
   tile: Tile
   isFavorite: boolean
+  extraPages: TilePage[]
+  activePageIndex: number
   onClose: () => void
   onSplitRight: () => void
   onSplitDown: () => void
   onPopOut: () => void
   onToggleFavorite: () => void
+  onAddPage: () => void
+  onSwitchPage: (idx: number) => void
+  onRemovePage: (idx: number) => void
 }
 
 function TileView({
   tile,
   isFavorite,
+  extraPages,
+  activePageIndex,
   onClose,
   onSplitRight,
   onSplitDown,
   onPopOut,
   onToggleFavorite,
+  onAddPage,
+  onSwitchPage,
+  onRemovePage,
 }: TileViewProps) {
-  const [loading, setLoading] = useState(true)
+  const allPages: TilePage[] = [
+    { url: tile.url, title: tile.title, faviconUrl: tile.faviconUrl, openMode: tile.openMode },
+    ...extraPages,
+  ]
+  const clampedIdx = Math.min(activePageIndex, allPages.length - 1)
+  const activePage = allPages[clampedIdx]
+  const hasMultiplePages = allPages.length > 1
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-slate-900">
+      {/* Header */}
       <div className="group flex h-8 shrink-0 items-center gap-1.5 border-b border-white/5 bg-slate-800/50 px-2">
-        {tile.faviconUrl ? (
-          <img src={tile.faviconUrl} className="h-3.5 w-3.5 shrink-0 rounded-sm" alt="" />
+        {activePage.faviconUrl ? (
+          <img src={activePage.faviconUrl} className="h-3.5 w-3.5 shrink-0 rounded-sm" alt="" />
         ) : (
           <Globe size={12} className="shrink-0 text-slate-500" />
         )}
-        <span className="flex-1 truncate text-[11px] text-slate-400">{tile.title ?? tile.url}</span>
+        <span className="flex-1 truncate text-[11px] text-slate-400">
+          {activePage.title ?? activePage.url}
+        </span>
 
-        {/* Tile action buttons — appear on header hover */}
+        {/* Action buttons — appear on header hover */}
         <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-          <button
-            onClick={onToggleFavorite}
-            title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-            className={`rounded p-1 hover:bg-white/10 ${isFavorite ? 'text-yellow-400 hover:text-yellow-300' : 'text-slate-500 hover:text-slate-200'}`}
-          >
-            <Star size={11} fill={isFavorite ? 'currentColor' : 'none'} />
-          </button>
+          <Tooltip label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}>
+            <button
+              onClick={onToggleFavorite}
+              className={`rounded p-1 hover:bg-white/10 ${isFavorite ? 'text-yellow-400 hover:text-yellow-300' : 'text-slate-500 hover:text-slate-200'}`}
+            >
+              <Star size={11} fill={isFavorite ? 'currentColor' : 'none'} />
+            </button>
+          </Tooltip>
           <div className="mx-0.5 h-3 w-px bg-white/10" />
-          <button
-            onClick={onSplitRight}
-            title="Split right"
-            className="rounded p-1 text-slate-500 hover:bg-white/10 hover:text-slate-200"
-          >
-            <SplitRightIcon />
-          </button>
-          <button
-            onClick={onSplitDown}
-            title="Split down"
-            className="rounded p-1 text-slate-500 hover:bg-white/10 hover:text-slate-200"
-          >
-            <SplitDownIcon />
-          </button>
+          <Tooltip label="Split right">
+            <button
+              onClick={onSplitRight}
+              className="rounded p-1 text-slate-500 hover:bg-white/10 hover:text-slate-200"
+            >
+              <SplitRightIcon />
+            </button>
+          </Tooltip>
+          <Tooltip label="Split down">
+            <button
+              onClick={onSplitDown}
+              className="rounded p-1 text-slate-500 hover:bg-white/10 hover:text-slate-200"
+            >
+              <SplitDownIcon />
+            </button>
+          </Tooltip>
           <div className="mx-0.5 h-3 w-px bg-white/10" />
-          <button
-            onClick={onPopOut}
-            title="Open in tab"
-            className="rounded p-1 text-slate-500 hover:bg-white/10 hover:text-slate-200"
-          >
-            <ExternalLink size={11} />
-          </button>
+          <Tooltip label="Add page">
+            <button
+              onClick={onAddPage}
+              className="rounded p-1 text-slate-500 hover:bg-white/10 hover:text-slate-200"
+            >
+              <Files size={11} />
+            </button>
+          </Tooltip>
+          <Tooltip label="Open in tab">
+            <button
+              onClick={onPopOut}
+              className="rounded p-1 text-slate-500 hover:bg-white/10 hover:text-slate-200"
+            >
+              <ExternalLink size={11} />
+            </button>
+          </Tooltip>
           <div className="mx-0.5 h-3 w-px bg-white/10" />
-          <button
-            onClick={onClose}
-            className="rounded p-0.5 text-slate-500 hover:bg-white/10 hover:text-slate-300"
-          >
-            <X size={11} />
-          </button>
+          <Tooltip label="Close tile">
+            <button
+              onClick={onClose}
+              className="rounded p-0.5 text-slate-500 hover:bg-white/10 hover:text-slate-300"
+            >
+              <X size={11} />
+            </button>
+          </Tooltip>
         </div>
       </div>
 
-      {tile.openMode === 'iframe' ? (
-        <>
-          {loading && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900">
-              <Loader2 size={20} className="animate-spin text-slate-600" />
-            </div>
-          )}
-          <iframe
-            src={tile.url}
-            className="flex-1 border-none bg-white"
-            onLoad={() => setLoading(false)}
-            title={tile.title ?? tile.url}
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-top-navigation-by-user-activation"
-          />
-        </>
+      {/* Tab bar — only when there are multiple pages */}
+      {hasMultiplePages && (
+        <div className="flex h-7 shrink-0 items-stretch overflow-x-auto border-b border-white/5 bg-slate-950/60 scrollbar-none">
+          {allPages.map((page, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => onSwitchPage(idx)}
+              className={`group/tab relative flex min-w-0 max-w-[160px] shrink-0 items-center gap-1.5 border-r border-white/5 px-2.5 text-[11px] transition-colors ${
+                idx === clampedIdx
+                  ? 'bg-slate-800 text-slate-200'
+                  : 'text-slate-500 hover:bg-slate-800/50 hover:text-slate-300'
+              }`}
+            >
+              {page.faviconUrl ? (
+                <img src={page.faviconUrl} className="h-3 w-3 shrink-0 rounded-sm" alt="" />
+              ) : (
+                <Globe size={10} className="shrink-0" />
+              )}
+              <span className="min-w-0 flex-1 truncate">
+                {page.title ??
+                  (() => {
+                    try {
+                      return new URL(page.url).hostname
+                    } catch {
+                      return page.url
+                    }
+                  })()}
+              </span>
+              {idx > 0 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onRemovePage(idx)
+                  }}
+                  className="ml-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded opacity-0 hover:bg-white/15 group-hover/tab:opacity-100"
+                >
+                  <X size={8} />
+                </button>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Content */}
+      {activePage.openMode === 'iframe' ? (
+        <IframeView
+          key={activePage.url}
+          url={activePage.url}
+          title={activePage.title ?? activePage.url}
+        />
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-          {tile.faviconUrl && <img src={tile.faviconUrl} className="h-10 w-10 rounded-lg" alt="" />}
-          <p className="text-sm font-medium text-slate-300">{tile.title ?? tile.url}</p>
+          {activePage.faviconUrl && (
+            <img src={activePage.faviconUrl} className="h-10 w-10 rounded-lg" alt="" />
+          )}
+          <p className="text-sm font-medium text-slate-300">{activePage.title ?? activePage.url}</p>
           <p className="text-xs text-slate-500">This site blocks embedding in iframes.</p>
           <button
             onClick={onPopOut}
@@ -192,22 +301,32 @@ interface SplitPaneProps {
   node: LayoutNode
   tiles: Tile[]
   favorites: Favorite[]
+  tileExtraPages: Record<string, TilePage[]>
+  activeTilePageIndex: Record<string, number>
   onRemoveTile: (tileId: string) => void
   onLayoutChange: (node: LayoutNode) => void
   onSplitTile: (tileId: string, direction: 'row' | 'column') => void
   onPopOutTile: (tile: Tile) => void
   onToggleFavorite: (tile: Tile) => void
+  onAddPageToTile: (tileId: string) => void
+  onSwitchTilePage: (tileId: string, idx: number) => void
+  onRemoveTilePage: (tileId: string, idx: number) => void
 }
 
 function SplitPane({
   node,
   tiles,
   favorites,
+  tileExtraPages,
+  activeTilePageIndex,
   onRemoveTile,
   onLayoutChange,
   onSplitTile,
   onPopOutTile,
   onToggleFavorite,
+  onAddPageToTile,
+  onSwitchTilePage,
+  onRemoveTilePage,
 }: SplitPaneProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -219,11 +338,16 @@ function SplitPane({
         <TileView
           tile={tile}
           isFavorite={favorites.some((f) => f.url === tile.url)}
+          extraPages={tileExtraPages[tile.id] ?? []}
+          activePageIndex={activeTilePageIndex[tile.id] ?? 0}
           onClose={() => onRemoveTile(tile.id)}
           onSplitRight={() => onSplitTile(tile.id, 'row')}
           onSplitDown={() => onSplitTile(tile.id, 'column')}
           onPopOut={() => onPopOutTile(tile)}
           onToggleFavorite={() => onToggleFavorite(tile)}
+          onAddPage={() => onAddPageToTile(tile.id)}
+          onSwitchPage={(idx) => onSwitchTilePage(tile.id, idx)}
+          onRemovePage={(idx) => onRemoveTilePage(tile.id, idx)}
         />
       </div>
     )
@@ -287,11 +411,16 @@ function SplitPane({
           node={node.first}
           tiles={tiles}
           favorites={favorites}
+          tileExtraPages={tileExtraPages}
+          activeTilePageIndex={activeTilePageIndex}
           onRemoveTile={onRemoveTile}
           onLayoutChange={(n) => onLayoutChange({ ...node, first: n })}
           onSplitTile={onSplitTile}
           onPopOutTile={onPopOutTile}
           onToggleFavorite={onToggleFavorite}
+          onAddPageToTile={onAddPageToTile}
+          onSwitchTilePage={onSwitchTilePage}
+          onRemoveTilePage={onRemoveTilePage}
         />
       </div>
       <div
@@ -307,11 +436,16 @@ function SplitPane({
           node={node.second}
           tiles={tiles}
           favorites={favorites}
+          tileExtraPages={tileExtraPages}
+          activeTilePageIndex={activeTilePageIndex}
           onRemoveTile={onRemoveTile}
           onLayoutChange={(n) => onLayoutChange({ ...node, second: n })}
           onSplitTile={onSplitTile}
           onPopOutTile={onPopOutTile}
           onToggleFavorite={onToggleFavorite}
+          onAddPageToTile={onAddPageToTile}
+          onSwitchTilePage={onSwitchTilePage}
+          onRemoveTilePage={onRemoveTilePage}
         />
       </div>
     </div>
@@ -693,6 +827,9 @@ export function App() {
   const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null)
   const [poppedTabs, setPoppedTabs] = useState<PoppedTab[]>([])
   const [favorites, setFavorites] = useState<Favorite[]>([])
+  const [tileExtraPages, setTileExtraPages] = useState<Record<string, TilePage[]>>({})
+  const [activeTilePageIndex, setActiveTilePageIndex] = useState<Record<string, number>>({})
+  const [addPageTarget, setAddPageTarget] = useState<string | null>(null)
 
   const activeWorkspace = workspaces.find((w) => w.id === activeId) ?? null
 
@@ -739,9 +876,11 @@ export function App() {
   useEffect(() => {
     storage.get('poppedTabs').then((tabs) => setPoppedTabs(tabs ?? []))
     storage.get('favorites').then((favs) => setFavorites(favs ?? []))
+    storage.get('tileExtraPages').then((pages) => setTileExtraPages(pages ?? {}))
     return storage.onChange((changes) => {
       if (changes.poppedTabs !== undefined) setPoppedTabs(changes.poppedTabs ?? [])
       if (changes.favorites !== undefined) setFavorites(changes.favorites ?? [])
+      if (changes.tileExtraPages !== undefined) setTileExtraPages(changes.tileExtraPages ?? {})
     })
   }, [])
   useEffect(() => {
@@ -867,29 +1006,55 @@ export function App() {
         setTiles(newTiles)
         setLayout(newLayout)
         if (activeId) saveLayout(newLayout, activeId)
+        if (tileExtraPages[tileId]) {
+          const updated = { ...tileExtraPages }
+          delete updated[tileId]
+          await storage.set('tileExtraPages', updated)
+          setTileExtraPages(updated)
+        }
       } catch (err) {
         console.error('Failed to remove tile:', err)
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeId, activeWorkspace, tiles, layout],
+    [activeId, activeWorkspace, tiles, layout, tileExtraPages],
   )
 
   const handlePopOutTile = useCallback(
     async (tile: Tile) => {
       if (!activeId) return
       try {
+        // Pop the currently active page of the tile
+        const activeIdx = activeTilePageIndex[tile.id] ?? 0
+        const extraPages = tileExtraPages[tile.id] ?? []
+        const allPages: TilePage[] = [
+          {
+            url: tile.url,
+            title: tile.title,
+            faviconUrl: tile.faviconUrl,
+            openMode: tile.openMode,
+          },
+          ...extraPages,
+        ]
+        const activePage = allPages[Math.min(activeIdx, allPages.length - 1)]
+
         await api.delete(`/workspaces/${activeId}/tiles/${tile.id}`)
         const newTiles = tiles.filter((t) => t.id !== tile.id)
         const newLayout = layout ? removeTileFromLayout(layout, tile.id) : null
         setTiles(newTiles)
         setLayout(newLayout)
         if (activeId) saveLayout(newLayout, activeId)
+        if (tileExtraPages[tile.id]) {
+          const updated = { ...tileExtraPages }
+          delete updated[tile.id]
+          await storage.set('tileExtraPages', updated)
+          setTileExtraPages(updated)
+        }
         await browser.runtime.sendMessage({
           type: 'POP_OUT_TILE',
-          url: tile.url,
-          title: tile.title,
-          faviconUrl: tile.faviconUrl,
+          url: activePage.url,
+          title: activePage.title,
+          faviconUrl: activePage.faviconUrl,
         })
       } catch (err) {
         console.error('Failed to pop out tile:', err)
@@ -897,7 +1062,7 @@ export function App() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeId, tiles, layout],
+    [activeId, tiles, layout, tileExtraPages, activeTilePageIndex],
   )
 
   async function handleToggleFavorite(tile: Tile) {
@@ -937,6 +1102,45 @@ export function App() {
     const updated = favorites.filter((f) => f.url !== url)
     await storage.set('favorites', updated)
     setFavorites(updated)
+  }
+
+  async function handleAddPageToTile(tileId: string, url: string) {
+    setAddPageTarget(null)
+    setAddingTile(true)
+    try {
+      const { title, faviconUrl, isIframeable } = await fetchTileMeta(url)
+      const newPage: TilePage = {
+        url,
+        title,
+        faviconUrl,
+        openMode: isIframeable ? 'iframe' : 'tab',
+      }
+      const current = tileExtraPages[tileId] ?? []
+      const updated = { ...tileExtraPages, [tileId]: [...current, newPage] }
+      await storage.set('tileExtraPages', updated)
+      setTileExtraPages(updated)
+      setActiveTilePageIndex((prev) => ({ ...prev, [tileId]: 1 + current.length }))
+    } catch (err) {
+      showError(err instanceof ApiError ? err.message : 'Failed to add page.')
+    } finally {
+      setAddingTile(false)
+    }
+  }
+
+  function handleSwitchTilePage(tileId: string, idx: number) {
+    setActiveTilePageIndex((prev) => ({ ...prev, [tileId]: idx }))
+  }
+
+  async function handleRemoveTilePage(tileId: string, idx: number) {
+    if (idx === 0) return
+    const current = tileExtraPages[tileId] ?? []
+    const updated = { ...tileExtraPages, [tileId]: current.filter((_, i) => i !== idx - 1) }
+    await storage.set('tileExtraPages', updated)
+    setTileExtraPages(updated)
+    const activeIdx = activeTilePageIndex[tileId] ?? 0
+    if (activeIdx >= idx) {
+      setActiveTilePageIndex((prev) => ({ ...prev, [tileId]: Math.max(0, activeIdx - 1) }))
+    }
   }
 
   async function handleAddWorkspace(name: string) {
@@ -1190,11 +1394,16 @@ export function App() {
               node={layout}
               tiles={tiles}
               favorites={favorites}
+              tileExtraPages={tileExtraPages}
+              activeTilePageIndex={activeTilePageIndex}
               onRemoveTile={handleRemoveTile}
               onLayoutChange={handleLayoutChange}
               onSplitTile={openSplitModal}
               onPopOutTile={handlePopOutTile}
               onToggleFavorite={handleToggleFavorite}
+              onAddPageToTile={(tileId) => setAddPageTarget(tileId)}
+              onSwitchTilePage={handleSwitchTilePage}
+              onRemoveTilePage={handleRemoveTilePage}
             />
           ) : null}
         </div>
@@ -1218,6 +1427,13 @@ export function App() {
         ))}
       {showAddWorkspace && (
         <AddWorkspaceModal onAdd={handleAddWorkspace} onClose={() => setShowAddWorkspace(false)} />
+      )}
+      {addPageTarget && (
+        <AddTileModal
+          title="Add page to tile"
+          onAdd={(url) => handleAddPageToTile(addPageTarget, url)}
+          onClose={() => setAddPageTarget(null)}
+        />
       )}
       {editingWorkspace && (
         <EditWorkspaceModal
