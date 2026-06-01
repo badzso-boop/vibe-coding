@@ -79,14 +79,26 @@ function SplitDownIcon() {
   )
 }
 
-// ─── IframeView — isolated so loading resets on url change via key ───────────
+// ─── WebviewView — <webview> bypasses X-Frame-Options natively ───────────────
 
-function IframeView({ url, title }: { url: string; title: string }) {
+function WebviewView({ url, title }: { url: string; title: string }) {
   const [loading, setLoading] = useState(true)
+  const ref = useRef<HTMLElement>(null)
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 10_000)
-    return () => clearTimeout(timer)
+    const el = ref.current
+    if (!el) return
+    const onDone = () => setLoading(false)
+    el.addEventListener('loadstop', onDone)
+    el.addEventListener('loaderror', onDone)
+    el.addEventListener('loadabort', onDone)
+    const timer = setTimeout(onDone, 15_000)
+    return () => {
+      el.removeEventListener('loadstop', onDone)
+      el.removeEventListener('loaderror', onDone)
+      el.removeEventListener('loadabort', onDone)
+      clearTimeout(timer)
+    }
   }, [url])
 
   return (
@@ -96,12 +108,12 @@ function IframeView({ url, title }: { url: string; title: string }) {
           <Loader2 size={20} className="animate-spin text-slate-600" />
         </div>
       )}
-      <iframe
+      <webview
+        ref={ref}
         src={url}
-        className="flex-1 border-none bg-white"
-        onLoad={() => setLoading(false)}
         title={title}
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-top-navigation-by-user-activation"
+        allowpopups={true}
+        style={{ flex: 1, width: '100%', minHeight: 0 }}
       />
     </>
   )
@@ -285,7 +297,7 @@ function TileView({
       )}
 
       {/* Content */}
-      <IframeView
+      <WebviewView
         key={activePage.url}
         url={activePage.url}
         title={activePage.title ?? activePage.url}
