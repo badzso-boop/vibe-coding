@@ -79,10 +79,24 @@ function SplitDownIcon() {
   )
 }
 
-// ─── IframeView — isolated so loading resets on url change via key ───────────
+// ─── WebviewView — uses <webview> so X-Frame-Options / CSP are bypassed ──────
 
-function IframeView({ url, title }: { url: string; title: string }) {
+function WebviewView({ url, title }: { url: string; title: string }) {
   const [loading, setLoading] = useState(true)
+  const ref = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const onDone = () => setLoading(false)
+    el.addEventListener('loadstop', onDone)
+    el.addEventListener('loaderror', onDone)
+    return () => {
+      el.removeEventListener('loadstop', onDone)
+      el.removeEventListener('loaderror', onDone)
+    }
+  }, [url])
+
   return (
     <>
       {loading && (
@@ -90,12 +104,12 @@ function IframeView({ url, title }: { url: string; title: string }) {
           <Loader2 size={20} className="animate-spin text-slate-600" />
         </div>
       )}
-      <iframe
+      <webview
+        ref={ref}
         src={url}
-        className="flex-1 border-none bg-white"
-        onLoad={() => setLoading(false)}
         title={title}
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-top-navigation-by-user-activation"
+        allowpopups={true}
+        style={{ flex: 1, width: '100%', minHeight: 0 }}
       />
     </>
   )
@@ -279,28 +293,11 @@ function TileView({
       )}
 
       {/* Content */}
-      {activePage.openMode === 'iframe' ? (
-        <IframeView
-          key={activePage.url}
-          url={activePage.url}
-          title={activePage.title ?? activePage.url}
-        />
-      ) : (
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-          {activePage.faviconUrl && (
-            <img src={activePage.faviconUrl} className="h-10 w-10 rounded-lg" alt="" />
-          )}
-          <p className="text-sm font-medium text-slate-300">{activePage.title ?? activePage.url}</p>
-          <p className="text-xs text-slate-500">This site blocks embedding in iframes.</p>
-          <button
-            onClick={onPopOut}
-            className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500"
-          >
-            <ExternalLink size={12} />
-            Open in tab
-          </button>
-        </div>
-      )}
+      <WebviewView
+        key={activePage.url}
+        url={activePage.url}
+        title={activePage.title ?? activePage.url}
+      />
     </div>
   )
 }

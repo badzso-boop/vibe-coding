@@ -5,31 +5,6 @@ import { ok, Errors } from '@/lib/response'
 const TIMEOUT_MS = 5_000
 const ALLOWED_PROTOCOLS = new Set(['http:', 'https:'])
 
-function parseIframeability(headers: Headers): { isIframeable: boolean; reason: string | null } {
-  const xfo = headers.get('x-frame-options')?.toUpperCase()
-  if (xfo === 'DENY' || xfo === 'SAMEORIGIN') {
-    return { isIframeable: false, reason: `x-frame-options: ${xfo}` }
-  }
-
-  const csp = headers.get('content-security-policy')
-  if (csp) {
-    const frameAncestors = csp
-      .split(';')
-      .map((d) => d.trim())
-      .find((d) => d.startsWith('frame-ancestors'))
-
-    if (frameAncestors) {
-      // frame-ancestors 'none' or frame-ancestors specific domains (not '*') blocks embedding
-      const value = frameAncestors.replace('frame-ancestors', '').trim()
-      if (value === "'none'" || (!value.includes('*') && value.length > 0)) {
-        return { isIframeable: false, reason: `csp: ${frameAncestors}` }
-      }
-    }
-  }
-
-  return { isIframeable: true, reason: null }
-}
-
 function extractTitle(html: string): string | null {
   const match = html.match(/<title[^>]*>([^<]{1,512})<\/title>/i)
   return match ? match[1].trim() : null
@@ -73,21 +48,7 @@ export async function GET(request: NextRequest) {
     return Errors.badRequest('url must be a valid http or https URL')
   }
 
-  const signal = AbortSignal.timeout(TIMEOUT_MS)
-  const unreachable = { isIframeable: false, reason: 'unreachable' }
-
   try {
-    // HEAD first — cheaper, gives us headers for iframe check
-    const headRes = await fetch(rawUrl, {
-      method: 'HEAD',
-      redirect: 'follow',
-      signal,
-      headers: { 'User-Agent': 'FlowSpace/1.0 (metadata bot)' },
-    })
-
-    const { isIframeable, reason } = parseIframeability(headRes.headers)
-
-    // GET to extract title and favicon from HTML
     const getSignal = AbortSignal.timeout(TIMEOUT_MS)
     const getRes = await fetch(rawUrl, {
       redirect: 'follow',
@@ -102,8 +63,8 @@ export async function GET(request: NextRequest) {
         url: rawUrl,
         title: parsed.hostname,
         faviconUrl: `${parsed.origin}/favicon.ico`,
-        isIframeable,
-        iframeBlockReason: reason,
+        isIframeable: true,
+        iframeBlockReason: null,
       })
     }
 
@@ -128,16 +89,16 @@ export async function GET(request: NextRequest) {
       url: rawUrl,
       title: extractTitle(html),
       faviconUrl: extractFavicon(html, parsed.origin),
-      isIframeable,
-      iframeBlockReason: reason,
+      isIframeable: true,
+      iframeBlockReason: null,
     })
   } catch {
     return ok({
       url: rawUrl,
       title: null,
       faviconUrl: null,
-      isIframeable: unreachable.isIframeable,
-      iframeBlockReason: unreachable.reason,
+      isIframeable: true,
+      iframeBlockReason: null,
     })
   }
 }

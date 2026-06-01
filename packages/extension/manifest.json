@@ -3,7 +3,7 @@
   "name": "FlowSpace",
   "version": "0.1.0",
   "description": "Tiling workspace manager for your browser — organize multiple websites side-by-side.",
-  "permissions": ["storage", "tabs", "declarativeNetRequest"],
+  "permissions": ["storage", "tabs"],
   "host_permissions": ["<all_urls>"],
   "action": {
     "default_popup": "src/popup/index.html",
@@ -37,15 +37,6 @@
       "run_at": "document_idle"
     }
   ],
-  "declarative_net_request": {
-    "rule_resources": [
-      {
-        "id": "ruleset_iframe",
-        "enabled": true,
-        "path": "rules/iframe.json"
-      }
-    ]
-  },
   "web_accessible_resources": [
     {
       "resources": ["src/content/sidebar.html"],
