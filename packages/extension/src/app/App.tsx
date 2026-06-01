@@ -129,6 +129,7 @@ interface TileViewProps {
   onAddPage: () => void
   onSwitchPage: (idx: number) => void
   onRemovePage: (idx: number) => void
+  onEditUrl: () => void
 }
 
 function TileView({
@@ -144,6 +145,7 @@ function TileView({
   onAddPage,
   onSwitchPage,
   onRemovePage,
+  onEditUrl,
 }: TileViewProps) {
   const allPages: TilePage[] = [
     { url: tile.url, title: tile.title, faviconUrl: tile.faviconUrl, openMode: tile.openMode },
@@ -208,6 +210,14 @@ function TileView({
               className="rounded p-1 text-slate-500 hover:bg-white/10 hover:text-slate-200"
             >
               <ExternalLink size={11} />
+            </button>
+          </Tooltip>
+          <Tooltip label="Edit URL">
+            <button
+              onClick={onEditUrl}
+              className="rounded p-1 text-slate-500 hover:bg-white/10 hover:text-slate-200"
+            >
+              <Pencil size={11} />
             </button>
           </Tooltip>
           <div className="mx-0.5 h-3 w-px bg-white/10" />
@@ -311,6 +321,7 @@ interface SplitPaneProps {
   onAddPageToTile: (tileId: string) => void
   onSwitchTilePage: (tileId: string, idx: number) => void
   onRemoveTilePage: (tileId: string, idx: number) => void
+  onEditTile: (tile: Tile) => void
 }
 
 function SplitPane({
@@ -327,6 +338,7 @@ function SplitPane({
   onAddPageToTile,
   onSwitchTilePage,
   onRemoveTilePage,
+  onEditTile,
 }: SplitPaneProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -348,6 +360,7 @@ function SplitPane({
           onAddPage={() => onAddPageToTile(tile.id)}
           onSwitchPage={(idx) => onSwitchTilePage(tile.id, idx)}
           onRemovePage={(idx) => onRemoveTilePage(tile.id, idx)}
+          onEditUrl={() => onEditTile(tile)}
         />
       </div>
     )
@@ -421,6 +434,7 @@ function SplitPane({
           onAddPageToTile={onAddPageToTile}
           onSwitchTilePage={onSwitchTilePage}
           onRemoveTilePage={onRemoveTilePage}
+          onEditTile={onEditTile}
         />
       </div>
       <div
@@ -446,6 +460,7 @@ function SplitPane({
           onAddPageToTile={onAddPageToTile}
           onSwitchTilePage={onSwitchTilePage}
           onRemoveTilePage={onRemoveTilePage}
+          onEditTile={onEditTile}
         />
       </div>
     </div>
@@ -456,12 +471,13 @@ function SplitPane({
 
 interface AddTileModalProps {
   title?: string
+  initialUrl?: string
   onAdd: (url: string) => void
   onClose: () => void
 }
 
-function AddTileModal({ title = 'Add tile', onAdd, onClose }: AddTileModalProps) {
-  const [url, setUrl] = useState('')
+function AddTileModal({ title = 'Add tile', initialUrl = '', onAdd, onClose }: AddTileModalProps) {
+  const [url, setUrl] = useState(initialUrl)
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -830,6 +846,7 @@ export function App() {
   const [tileExtraPages, setTileExtraPages] = useState<Record<string, TilePage[]>>({})
   const [activeTilePageIndex, setActiveTilePageIndex] = useState<Record<string, number>>({})
   const [addPageTarget, setAddPageTarget] = useState<string | null>(null)
+  const [editingTile, setEditingTile] = useState<Tile | null>(null)
 
   const activeWorkspace = workspaces.find((w) => w.id === activeId) ?? null
 
@@ -1102,6 +1119,42 @@ export function App() {
     const updated = favorites.filter((f) => f.url !== url)
     await storage.set('favorites', updated)
     setFavorites(updated)
+  }
+
+  async function handleEditTileUrl(tile: Tile, newUrl: string) {
+    setEditingTile(null)
+    setAddingTile(true)
+    try {
+      const { title, faviconUrl, isIframeable } = await fetchTileMeta(newUrl)
+      const openMode = isIframeable ? 'iframe' : 'tab'
+      await api.patch(`/workspaces/${activeId}/tiles/${tile.id}`, {
+        url: newUrl,
+        title,
+        faviconUrl,
+        openMode,
+      })
+      setTiles((prev) =>
+        prev.map((t) =>
+          t.id === tile.id ? { ...t, url: newUrl, title, faviconUrl, openMode } : t,
+        ),
+      )
+      // Reset extra pages for this tile since the main URL changed
+      if (tileExtraPages[tile.id]) {
+        const updated = { ...tileExtraPages }
+        delete updated[tile.id]
+        await storage.set('tileExtraPages', updated)
+        setTileExtraPages(updated)
+        setActiveTilePageIndex((prev) => {
+          const n = { ...prev }
+          delete n[tile.id]
+          return n
+        })
+      }
+    } catch (err) {
+      showError(err instanceof ApiError ? err.message : 'Failed to update tile.')
+    } finally {
+      setAddingTile(false)
+    }
   }
 
   async function handleAddPageToTile(tileId: string, url: string) {
@@ -1404,6 +1457,7 @@ export function App() {
               onAddPageToTile={(tileId) => setAddPageTarget(tileId)}
               onSwitchTilePage={handleSwitchTilePage}
               onRemoveTilePage={handleRemoveTilePage}
+              onEditTile={setEditingTile}
             />
           ) : null}
         </div>
@@ -1433,6 +1487,14 @@ export function App() {
           title="Add page to tile"
           onAdd={(url) => handleAddPageToTile(addPageTarget, url)}
           onClose={() => setAddPageTarget(null)}
+        />
+      )}
+      {editingTile && (
+        <AddTileModal
+          title="Edit tile URL"
+          initialUrl={editingTile.url}
+          onAdd={(url) => handleEditTileUrl(editingTile, url)}
+          onClose={() => setEditingTile(null)}
         />
       )}
       {editingWorkspace && (
