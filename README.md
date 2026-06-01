@@ -64,6 +64,9 @@ Each tile loads the target website inside the extension view. The extension stri
 - **Keyboard shortcuts** — `Ctrl+1–9` switches between workspaces. `Ctrl+Shift+D` brings you back to FlowSpace from any tab.
 - **Favorites bar** — Star any tile to add it to the favorites bar in the top header. Click a favorite to open it in the current workspace instantly.
 - **Open in tab + sidebar tracking** — Pop out any tile to a real browser tab with one click. The site's favicon appears in the left sidebar; clicking it switches back to that tab. Icons are cleaned up automatically when the tab is closed.
+- **Tile URL editing** — Pencil icon button in the tile header (visible on hover) lets you change a tile's URL. Re-fetches metadata and recalculates `openMode` for the new URL automatically.
+- **Tile page tabs** — Files icon button in the tile header adds extra pages to a tile (like VS Code tabs). A compact tab bar appears when 2+ pages are open; each extra tab can be closed independently. Active page index is tracked per tile in `browser.storage.local`.
+- **Button tooltips** — All tile header action buttons show a delayed tooltip on hover (Add to favorites, Split right, Split down, Add page, Open in tab, Edit URL, Close tile).
 - **Automatic iframe detection** — When adding a tile, the metadata API checks the site's `X-Frame-Options` and `Content-Security-Policy` headers server-side. Sites that block embedding are auto-set to `openMode: 'tab'` and offer a one-click "Open in tab" button.
 - **Frame-buster protection** — `sandbox` attribute on iframes blocks JavaScript frame-busting scripts (e.g. Stack Overflow) while keeping the page fully functional.
 - **Content script widget** — Floating button injected into every tab for quick navigation back to FlowSpace. Shows tooltip and `Ctrl+Shift+D` hint.
@@ -84,7 +87,7 @@ Each tile loads the target website inside the extension view. The extension stri
 - **Stripe payments** — Pro tier upgrade (endpoint returns 503, wired up but not active).
 - **Workspace templates** — API exists, not wired into the extension UI.
 - **Workspace reorder** — API exists (`POST /workspaces/reorder`), not in extension UI.
-- **Tile settings** — Edit URL, title, open mode (`iframe` vs `tab`) after creation.
+- **Tile title editing** — URL can be changed but title cannot be manually overridden (always fetched from metadata).
 - **Offline mode** — Currently requires active internet connection.
 - **Chrome Web Store** — Not published yet.
 - **Firefox Add-ons** — Not published yet.
@@ -129,8 +132,8 @@ vibe coding/                          ← monorepo root
 │   │   │   └── lib/
 │   │   │       ├── api.ts            ← Typed API client with auth header injection
 │   │   │       ├── browser.ts        ← webextension-polyfill wrapper
-│   │   │       ├── storage.ts        ← browser.storage.local typed wrapper (auth, activeWorkspaceId, poppedTabs, favorites)
-│   │   │       └── types.ts          ← Workspace, Tile, PoppedTab, Favorite TypeScript interfaces
+│   │   │       ├── storage.ts        ← browser.storage.local typed wrapper (auth, activeWorkspaceId, poppedTabs, favorites, tileExtraPages)
+│   │   │       └── types.ts          ← Workspace, Tile, PoppedTab, Favorite, TilePage interfaces
 │   │   ├── public/
 │   │   │   └── rules/
 │   │   │       └── iframe.json       ← declarativeNetRequest rules (strips iframe-blocking headers)
@@ -949,7 +952,6 @@ Add a `deploy` job to `ci.yml` targeting `runs-on: self-hosted` that runs `git p
 - [ ] **CD pipeline** — self-hosted runner on server, auto-deploy on green `main`
 
 ### Medium term
-- [ ] **Tile settings** — edit URL, title, open mode after creation
 - [ ] **Workspace reorder** — drag-and-drop in the sidebar
 - [ ] **Workspace templates** — use official templates from the extension UI
 - [ ] **Chrome Web Store submission** — publish the extension
@@ -975,6 +977,10 @@ Add a `deploy` job to `ci.yml` targeting `runs-on: self-hosted` that runs `git p
 - [x] **Automatic iframe detection** — `openMode` set correctly at tile creation time
 - [x] **Newsletter** — Resend Audiences integration, email capture on landing page
 - [x] **Marketing plan** — rendered page at `/marketing-plan` + raw API at `/api/v1/marketing-plan`
+- [x] **Tile URL editing** — pencil button in tile header, re-fetches metadata automatically
+- [x] **Tile page tabs** — multiple pages per tile, VS Code-style tab bar, persisted in storage
+- [x] **Button tooltips** — all tile header actions have hover tooltips
+- [x] **Pre-commit hook** — Husky + `pnpm check` blocks commits with formatting/type/lint/test errors
 
 ---
 
