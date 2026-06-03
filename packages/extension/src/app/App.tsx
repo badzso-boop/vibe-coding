@@ -79,27 +79,10 @@ function SplitDownIcon() {
   )
 }
 
-// ─── WebviewView — <webview> bypasses X-Frame-Options natively ───────────────
+// ─── IframeView — X-Frame-Options/CSP stripped via declarativeNetRequest ─────
 
 function WebviewView({ url, title }: { url: string; title: string }) {
   const [loading, setLoading] = useState(true)
-  const ref = useRef<HTMLElement>(null)
-
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const onDone = () => setLoading(false)
-    el.addEventListener('loadstop', onDone)
-    el.addEventListener('loaderror', onDone)
-    el.addEventListener('loadabort', onDone)
-    const timer = setTimeout(onDone, 15_000)
-    return () => {
-      el.removeEventListener('loadstop', onDone)
-      el.removeEventListener('loaderror', onDone)
-      el.removeEventListener('loadabort', onDone)
-      clearTimeout(timer)
-    }
-  }, [url])
 
   return (
     <>
@@ -108,12 +91,13 @@ function WebviewView({ url, title }: { url: string; title: string }) {
           <Loader2 size={20} className="animate-spin text-slate-600" />
         </div>
       )}
-      <webview
-        ref={ref}
+      <iframe
         src={url}
         title={title}
-        allowpopups={true}
-        style={{ flex: 1, width: '100%', minHeight: 0 }}
+        allowFullScreen
+        onLoad={() => setLoading(false)}
+        onError={() => setLoading(false)}
+        style={{ flex: 1, width: '100%', minHeight: 0, border: 'none' }}
       />
     </>
   )
