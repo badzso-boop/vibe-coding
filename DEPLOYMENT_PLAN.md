@@ -5,8 +5,8 @@
 | # | Feladat | Miért kritikus | Becsült idő |
 |---|---|---|---|
 | 1 | Supabase schema + Vercel deploy | Semmi nem megy nélküle | ~2 nap |
-| 2 | Token refresh | User 1h után kidobva | ~4 óra |
-| 3 | Stripe | Pénz kell | ~1-2 nap |
+| 2 | Token refresh | User 1h után kidobva | ✅ KÉSZ |
+| 3 | Paddle integráció | Pénz kell | ~1-2 nap |
 | 4 | Chrome Web Store beadás | Terjesztés | ~3 óra + review |
 | 5 | Onboarding flow | Retention | ~1 nap |
 | 6 | Real-time sync | Pro feature ígéret | ~1 nap |
@@ -47,47 +47,41 @@ VITE_APP_URL=https://app.flowspace.io
 
 ---
 
-## Fázis 2: Token refresh implementálás (~4 óra)
+## Fázis 2: Token refresh ✅ KÉSZ
 
-A `refreshToken` el van tárolva, de sem refresh endpoint, sem refresh logika nincs. A user ~1 óra után csendben kijelentkezik.
-
-### Backend — új endpoint
-`packages/web/app/api/v1/auth/extension/refresh/route.ts`
-- Fogadja: `{ refreshToken: string }`
-- Meghívja: `supabase.auth.refreshSession(refreshToken)`
-- Visszaadja: új `accessToken`, `refreshToken`, `expiresAt`
-
-### Extension — `packages/extension/src/lib/storage.ts`
-- `getAuth()` kibővítése: ha a token lejárt → automatikusan hívja a refresh endpointot
-- Ha a refresh is meghiúsul → `storage.clear()` → user visszairányítva loginra
-
-### Extension — `packages/extension/src/lib/api.ts`
-- `request()` függvénybe: ha 401-et kap → megpróbál refreshelni → újraküldi a requestet
+Implementálva — lásd commit `405cbda`.
+- `POST /api/v1/auth/extension/refresh` — Supabase OAuth2 refresh flow
+- `storage.ts` — auto-refresh 60s lejárat előtt, concurrent hívások deduplikálva
+- `api.ts` — 401 esetén egy retry friss tokennel
 
 ---
 
-## Fázis 3: Stripe integráció (~1-2 nap)
+## Fázis 3: Paddle integráció (~1-2 nap)
 
-### 3.1 Stripe account & product
-- Stripe Dashboardon: Product → "FlowSpace Pro" → €9/hó recurring price
-- Szükséges env varok: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRO_PRICE_ID`
+> **Miért Paddle és nem Stripe?** Lásd `PAYMENT_PLAN.md` — Paddle Merchant of Record,
+> ők kezelik az EU ÁFÁ-t. Stripe-pal neked kellene 27% magyar ÁFA-t bevallani.
 
-### 3.2 Checkout endpoint
-`packages/web/app/api/v1/subscriptions/checkout/route.ts` — jelenleg 503 stub:
-- Stripe customer létrehozása vagy meglévő keresése a `stripe_customer_id` alapján
-- `stripe.checkout.sessions.create({ mode: 'subscription', price: PRICE_ID })`
-- Visszaadni: `{ url: checkoutSession.url }`
+### 3.1 Paddle account & product
+- [paddle.com](https://paddle.com) → Create account → Verify business
+- Dashboard: Catalog → Products → "FlowSpace Pro" → €9/hó recurring price
+- Szükséges env varok: `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`, `PADDLE_PRO_PRICE_ID`
+
+### 3.2 Checkout
+Paddle checkout URL-alapú — nincs saját checkout endpoint szükséges.
+A billing page-en egy Paddle.js overlay nyílik, vagy redirect a Paddle hosted checkoutra.
+- `packages/web/app/dashboard/billing/page.tsx` — "Upgrade" gomb → Paddle checkout URL
+- Checkout URL: `https://checkout.paddle.com/checkout/custom/{PRICE_ID}?customer_email={email}`
 
 ### 3.3 Webhook handler
-`packages/web/app/api/v1/webhooks/stripe/route.ts` — új fájl:
-- `checkout.session.completed` → `tier = 'pro'`, `status = 'active'`
-- `customer.subscription.deleted` → downgrade `tier = 'free'`
-- `invoice.payment_failed` → `status = 'past_due'`
+`packages/web/app/api/v1/webhooks/paddle/route.ts` — új fájl:
+- `subscription.activated` → `tier = 'pro'`, `status = 'active'`
+- `subscription.canceled` → downgrade `tier = 'free'`
+- `subscription.payment_failed` → `status = 'past_due'`
+- Paddle webhook signature verifikáció kötelező
 
-### 3.4 Billing portal
-`packages/web/app/api/v1/subscriptions/portal/route.ts` — új fájl:
-- `stripe.billingPortal.sessions.create()` → redirect URL visszaadása
-- A billing page "Manage subscription" gombja hívja ezt
+### 3.4 Subscription management
+- Paddle Customer Portal URL generálása a billing page-en
+- `paddle.customers.getPortalSession(customerId)` → redirect URL
 
 ---
 
