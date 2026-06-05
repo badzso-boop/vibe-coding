@@ -1,3 +1,4 @@
+import { promises as dns } from 'dns'
 import { type NextRequest } from 'next/server'
 import { requireAuth, isAuthError } from '@/lib/auth'
 import { ok, Errors } from '@/lib/response'
@@ -28,11 +29,38 @@ function isBlockedHost(hostname: string): boolean {
   return false
 }
 
+// Pre-resolve the hostname and verify all returned IPs are public.
+// Mitigates DNS rebinding: an attacker-controlled domain with TTL=0 could
+// resolve to a private IP at connection time even if it resolved publicly
+// at validation time. We reject if ANY resolved address is blocked.
+async function assertPublicHost(hostname: string): Promise<void> {
+  // Raw IP addresses are already checked by isBlockedHost before we get here
+  const isRawIp = /^[\d.]+$/.test(hostname) || /^[0-9a-f:]+$/i.test(hostname)
+  if (isRawIp) return
+  let addresses: { address: string; family: number }[]
+  try {
+    addresses = (await dns.lookup(hostname, { all: true })) as {
+      address: string
+      family: number
+    }[]
+  } catch {
+    // ENOTFOUND etc. — let fetch surface the error naturally
+    return
+  }
+  for (const { address } of addresses) {
+    if (isBlockedHost(address)) throw new Error('Host resolves to a private or reserved address')
+  }
+}
+
 const MAX_REDIRECTS = 5
 
 async function safeFetch(initialUrl: string, signal: AbortSignal): Promise<Response> {
   let currentUrl = initialUrl
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    // Re-validate + re-resolve on every hop (covers open-redirect SSRF and DNS rebinding)
+    const parsed = new URL(currentUrl)
+    if (isBlockedHost(parsed.hostname)) throw new Error('Redirect to blocked host')
+    await assertPublicHost(parsed.hostname)
     const res = await fetch(currentUrl, {
       redirect: 'manual',
       signal,
@@ -48,7 +76,6 @@ async function safeFetch(initialUrl: string, signal: AbortSignal): Promise<Respo
     } catch {
       throw new Error('Redirect to invalid URL')
     }
-    if (isBlockedHost(next.hostname)) throw new Error('Redirect to blocked host')
     currentUrl = next.toString()
   }
   throw new Error('Too many redirects')
@@ -112,6 +139,12 @@ export async function GET(request: NextRequest) {
   }
 
   if (isBlockedHost(parsed.hostname)) {
+    return Errors.badRequest('url must be a public web address')
+  }
+
+  try {
+    await assertPublicHost(parsed.hostname)
+  } catch {
     return Errors.badRequest('url must be a public web address')
   }
 
