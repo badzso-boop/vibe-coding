@@ -2,8 +2,6 @@
 
 A browser extension that turns your browser into a tiling workspace manager. Organize multiple websites side-by-side in resizable panels — like a window manager, but inside your browser. Switch between workspaces instantly with keyboard shortcuts.
 
-![FlowSpace](https://via.placeholder.com/1200x600/0f172a/3b82f6?text=FlowSpace)
-
 ---
 
 ## Table of Contents
@@ -17,8 +15,11 @@ A browser extension that turns your browser into a tiling workspace manager. Org
   - [1. Clone & install dependencies](#1-clone--install-dependencies)
   - [2. Environment variables](#2-environment-variables)
   - [3. Supabase setup](#3-supabase-setup)
-  - [4. Run locally](#4-run-locally)
-  - [5. Build & load the extension](#5-build--load-the-extension)
+  - [4. Google OAuth setup](#4-google-oauth-setup)
+  - [5. Paddle setup](#5-paddle-setup)
+  - [6. Run locally](#6-run-locally)
+  - [7. Build & load the extension](#7-build--load-the-extension)
+- [Vercel Deploy](#vercel-deploy)
 - [Admin Panel](#admin-panel)
 - [API Reference](#api-reference)
 - [Database Schema](#database-schema)
@@ -66,32 +67,30 @@ Each tile loads the target website inside the extension view. The extension stri
 - **Open in tab + sidebar tracking** — Pop out any tile to a real browser tab with one click. The site's favicon appears in the left sidebar; clicking it switches back to that tab. Icons are cleaned up automatically when the tab is closed.
 - **Tile URL editing** — Pencil icon button in the tile header (visible on hover) lets you change a tile's URL. Re-fetches metadata and recalculates `openMode` for the new URL automatically.
 - **Tile page tabs** — Files icon button in the tile header adds extra pages to a tile (like VS Code tabs). A compact tab bar appears when 2+ pages are open; each extra tab can be closed independently. Active page index is tracked per tile in `browser.storage.local`.
-- **Button tooltips** — All tile header action buttons show a delayed tooltip on hover (Add to favorites, Split right, Split down, Add page, Open in tab, Edit URL, Close tile).
-- **Automatic iframe detection** — When adding a tile, the metadata API checks the site's `X-Frame-Options` and `Content-Security-Policy` headers server-side. Sites that block embedding are auto-set to `openMode: 'tab'` and offer a one-click "Open in tab" button.
-- **Frame-buster protection** — `sandbox` attribute on iframes blocks JavaScript frame-busting scripts (e.g. Stack Overflow) while keeping the page fully functional.
+- **Button tooltips** — All tile header action buttons show a delayed tooltip on hover.
+- **Automatic iframe detection** — When adding a tile, the metadata API checks the site's `X-Frame-Options` and `Content-Security-Policy` headers server-side. Sites that block embedding are auto-set to `openMode: 'tab'`.
+- **Frame-buster protection** — `sandbox` attribute on iframes blocks JavaScript frame-busting scripts while keeping the page fully functional.
 - **Content script widget** — Floating button injected into every tab for quick navigation back to FlowSpace. Shows tooltip and `Ctrl+Shift+D` hint.
 - **Extension auth flow** — Secure one-time code exchange using AES-256-GCM encrypted tokens. No passwords stored in the extension.
+- **Token refresh** — Expired Supabase tokens are automatically refreshed; concurrent refresh requests are deduplicated. `401` responses trigger a one-time retry with a fresh token.
 - **Auth** — Email + password, Google OAuth, email verification, password reset (all via Supabase Auth).
 - **Dashboard** — Usage overview, device management, subscription info.
 - **Device management** — View all connected devices, revoke access to individual devices.
 - **Admin panel** — User management, subscription overview, device revocation for support purposes.
 - **Free tier enforcement** — 1 workspace, 4 tiles per workspace, 1 device.
 - **Cross-browser** — Chrome, Edge, Brave (native). Firefox 128+ (via `webextension-polyfill`).
-- **Newsletter signup** — Email capture form on the landing page backed by Resend Audiences. Subscribers are stored in a Resend Audience; the form handles duplicate emails gracefully (treated as success).
-- **Marketing plan page** — Rendered at `/marketing-plan` as a styled dark-themed page (not indexed by search engines). Also available as raw Markdown via `GET /api/v1/marketing-plan`.
-- **Toast notifications** — Error feedback for failed API calls.
+- **Newsletter signup** — Email capture form on the landing page backed by Resend Audiences.
+- **Vercel Analytics** — Page view and session tracking via `@vercel/analytics`, active in production automatically.
 - **CI pipeline** — GitHub Actions runs type-check, lint, and unit tests on every push.
 
 ### Not yet implemented
 
-- **Stripe payments** — Pro tier upgrade (endpoint returns 503, wired up but not active).
+- **Paddle payments** — Pro tier upgrade flow (checkout + webhook handler, billing page wired but pending Paddle account).
 - **Workspace templates** — API exists, not wired into the extension UI.
 - **Workspace reorder** — API exists (`POST /workspaces/reorder`), not in extension UI.
-- **Tile title editing** — URL can be changed but title cannot be manually overridden (always fetched from metadata).
-- **Offline mode** — Currently requires active internet connection.
 - **Chrome Web Store** — Not published yet.
 - **Firefox Add-ons** — Not published yet.
-- **Vercel / production deploy** — Not deployed yet.
+- **Vercel production deploy** — Not deployed yet (see [Vercel Deploy](#vercel-deploy)).
 
 ---
 
@@ -101,10 +100,11 @@ Each tile loads the target website inside the extension view. The extension stri
 |---|---|---|
 | Extension UI | React 19 + Vite 5 + Tailwind v4 | Manifest V3, `vite-plugin-web-extension` |
 | Web app | Next.js 15 App Router + Tailwind v4 | SSR, API routes, dashboard |
-| Database | Supabase (PostgreSQL) | Row Level Security, real-time, Auth |
+| Database | Supabase (PostgreSQL) | Row Level Security, Auth |
 | Auth | Supabase Auth | Email/password, Google OAuth, JWT |
-| Email | Resend | Transactional emails + newsletter audience (Resend Audiences API) |
-| Payments | Stripe | Stubbed — not yet active |
+| Email | Resend | Transactional emails + newsletter audience |
+| Payments | Paddle (Merchant of Record) | Handles EU VAT automatically — pending integration |
+| Analytics | Vercel Analytics | Page views + sessions, free on Vercel Hobby |
 | Monorepo | pnpm workspaces + Turborepo | |
 | Cross-browser | `webextension-polyfill` 0.12 | Chrome + Firefox unified API |
 | Type safety | TypeScript 5.5 strict mode | All packages |
@@ -121,7 +121,7 @@ vibe coding/                          ← monorepo root
 │   │   ├── src/
 │   │   │   ├── app/
 │   │   │   │   ├── App.tsx           ← Main extension UI (workspace + tile management)
-│   │   │   │   └── index.html        ← Extension app entry point
+│   │   │   │   └── index.html
 │   │   │   ├── background/
 │   │   │   │   └── index.ts          ← Service worker (auth exchange, tab management)
 │   │   │   ├── content/
@@ -130,105 +130,45 @@ vibe coding/                          ← monorepo root
 │   │   │   ├── popup/
 │   │   │   │   └── App.tsx           ← Extension popup (Sign In / Open FlowSpace)
 │   │   │   └── lib/
-│   │   │       ├── api.ts            ← Typed API client with auth header injection
+│   │   │       ├── api.ts            ← Typed API client (auth header injection, 401 retry)
 │   │   │       ├── browser.ts        ← webextension-polyfill wrapper
-│   │   │       ├── storage.ts        ← browser.storage.local typed wrapper (auth, activeWorkspaceId, poppedTabs, favorites, tileExtraPages)
-│   │   │       └── types.ts          ← Workspace, Tile, PoppedTab, Favorite, TilePage interfaces
-│   │   ├── public/
-│   │   │   └── rules/
-│   │   │       └── iframe.json       ← declarativeNetRequest rules (strips iframe-blocking headers)
+│   │   │       ├── storage.ts        ← browser.storage.local typed wrapper + token refresh
+│   │   │       └── types.ts          ← Workspace, Tile, PoppedTab, Favorite, TilePage
+│   │   ├── public/rules/
+│   │   │   └── iframe.json           ← declarativeNetRequest rules (strips iframe-blocking headers)
 │   │   ├── manifest.json             ← MV3 manifest (Chrome + Firefox)
 │   │   └── vite.config.ts
 │   │
 │   ├── web/                          ← Next.js web app (landing + dashboard + API)
 │   │   ├── app/
-│   │   │   ├── page.tsx              ← Landing page (CTA + newsletter form)
-│   │   │   ├── marketing-plan/
-│   │   │   │   ├── page.tsx          ← Rendered marketing plan (dark theme, noindex)
-│   │   │   │   └── marketing-plan-content.tsx ← Client component (react-markdown renderer)
-│   │   │   ├── auth/
-│   │   │   │   ├── login/            ← Email + Google login
-│   │   │   │   ├── register/         ← Registration
-│   │   │   │   ├── reset-password/   ← Password reset request
-│   │   │   │   ├── update-password/  ← Set new password
-│   │   │   │   ├── extension/        ← Extension OAuth callback page
-│   │   │   │   └── callback/         ← Supabase OAuth redirect handler
-│   │   │   ├── dashboard/
-│   │   │   │   ├── page.tsx          ← Overview: plan, usage stats
-│   │   │   │   ├── devices/          ← Connected devices list + revoke
-│   │   │   │   └── billing/          ← Subscription management (Stripe)
-│   │   │   ├── admin/
-│   │   │   │   ├── layout.tsx        ← Admin layout (requires is_admin = true)
-│   │   │   │   └── users/
-│   │   │   │       ├── page.tsx      ← User list + stats overview
-│   │   │   │       └── [userId]/
-│   │   │   │           └── page.tsx  ← User detail: sub, devices, workspaces
-│   │   │   └── api/v1/
-│   │   │       ├── auth/extension/
-│   │   │       │   ├── code/         ← POST: generate one-time auth code
-│   │   │       │   ├── exchange/     ← POST: exchange code for tokens
-│   │   │       │   └── logout/       ← POST: revoke device + invalidate session
-│   │   │       ├── users/me/         ← GET/PATCH: user profile
-│   │   │       ├── devices/          ← GET: list devices
-│   │   │       ├── devices/[id]/     ← PATCH/DELETE: rename / revoke device
-│   │   │       ├── workspaces/       ← GET/POST: list + create workspaces
-│   │   │       ├── workspaces/[id]/  ← GET/PATCH/DELETE: workspace CRUD
-│   │   │       ├── workspaces/[id]/layout/    ← PATCH: save tile layout
-│   │   │       ├── workspaces/[id]/tiles/     ← GET/POST: list + add tiles
-│   │   │       ├── workspaces/[id]/tiles/[id] ← PATCH/DELETE: edit / remove tile
-│   │   │       ├── workspaces/[id]/duplicate/ ← POST: clone workspace
-│   │   │       ├── workspaces/reorder/        ← POST: reorder workspaces
-│   │   │       ├── workspaces/from-template/[id] ← POST: create from template
-│   │   │       ├── tiles/metadata/   ← GET: fetch title + favicon for a URL
-│   │   │       ├── newsletter/subscribe/ ← POST: subscribe email to Resend Audience
-│   │   │       ├── marketing-plan/   ← GET: raw marketing-plan.md as text/markdown
-│   │   │       ├── subscriptions/me/ ← GET: current subscription
-│   │   │       ├── subscriptions/checkout/ ← POST: Stripe checkout (stubbed)
-│   │   │       ├── templates/        ← GET: workspace templates
-│   │   │       └── health/           ← GET: health check
-│   │   ├── components/
-│   │   │   └── newsletter-form.tsx   ← Client component: email input + subscribe button
+│   │   │   ├── layout.tsx            ← Root layout (Vercel Analytics injected here)
+│   │   │   ├── page.tsx              ← Landing page
+│   │   │   ├── auth/                 ← Login, register, reset-password, update-password, callback
+│   │   │   ├── dashboard/            ← Overview, devices, billing
+│   │   │   ├── admin/                ← User management (is_admin required)
+│   │   │   └── api/v1/               ← All API routes
 │   │   ├── lib/
-│   │   │   ├── auth.ts               ← requireAuth() — JWT validation middleware
-│   │   │   ├── admin.ts              ← requireAdmin() — admin check middleware
-│   │   │   ├── supabase.ts           ← Service role client (server-side only)
-│   │   │   ├── resend.ts             ← Resend singleton (RESEND_API_KEY)
-│   │   │   ├── response.ts           ← ok(), created(), Errors.* response helpers
-│   │   │   ├── tier.ts               ← checkWorkspaceLimit(), checkDeviceLimit(), etc.
-│   │   │   └── crypto.ts             ← AES-256-GCM encrypt/decrypt for auth codes
-│   │   ├── tests/
-│   │   │   ├── setup.ts              ← Global test env vars (encryption key, Supabase URLs)
-│   │   │   ├── helpers/
-│   │   │   │   └── supabase-mock.ts  ← Chainable Supabase mock factory
-│   │   │   ├── lib/
-│   │   │   │   ├── crypto.test.ts    ← encrypt/decrypt unit tests
-│   │   │   │   ├── response.test.ts  ← Response helpers + Errors.* factory tests
-│   │   │   │   ├── auth.test.ts      ← requireAuth() middleware tests
-│   │   │   │   └── tier.test.ts      ← Tier limit check tests
-│   │   │   └── api/
-│   │   │       ├── workspaces.test.ts     ← Workspace CRUD route tests
-│   │   │       ├── auth-exchange.test.ts  ← Extension auth exchange route tests
-│   │   │       └── devices.test.ts        ← Device list + logout route tests
-│   │   ├── public/
-│   │   │   └── marketing-plan.md     ← Source file served by the marketing-plan page + API
-│   │   └── vitest.config.ts          ← Vitest config (path aliases, coverage)
+│   │   │   ├── auth.ts               ← requireAuth() — JWT validation
+│   │   │   ├── crypto.ts             ← AES-256-GCM encrypt/decrypt
+│   │   │   ├── tier.ts               ← Tier limit checks
+│   │   │   ├── supabase.ts           ← Service role + anon client factories
+│   │   │   └── response.ts           ← ok(), Errors.* helpers
+│   │   └── tests/                    ← 78 unit tests (Vitest)
 │   │
 │   └── shared/                       ← Shared TypeScript types + constants
-│       └── src/
-│           └── index.ts              ← LayoutNode type, TIER_LIMITS constants
+│       └── src/index.ts              ← LayoutNode, TIER_LIMITS
 │
 ├── supabase/
-│   ├── schema.sql                    ← Full database schema (run once in Supabase SQL Editor)
+│   ├── schema.sql                    ← Full DB schema (✅ already run in production)
 │   └── migrations/
-│       └── 001_add_is_admin.sql      ← Add is_admin column + set yourself as admin
+│       └── 001_add_is_admin.sql
 │
-├── marketing_plan.md                 ← Organic growth plan (edit here, then copy to packages/web/public/)
-├── project-overview.md               ← Product concept, UX principles, browser support
-├── data-model.md                     ← Database tables, relationships, layout_json spec
-├── api-design.md                     ← Full API design with request/response examples
-├── pnpm-workspace.yaml
-├── turbo.json
-└── README.md                         ← This file
+├── DEPLOYMENT_PLAN.md                ← Step-by-step production launch plan
+├── PAYMENT_PLAN.md                   ← Paddle integration + Hungarian tax guide
+├── project-overview.md
+├── data-model.md
+├── api-design.md
+└── README.md
 ```
 
 ---
@@ -269,19 +209,20 @@ NEXT_PUBLIC_EXTENSION_IDS=your-chrome-extension-id,your-firefox-extension-id
 
 # AES-256-GCM key for encrypting extension auth codes — generate with:
 # node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-ENCRYPTION_KEY=your-64-char-hex-key
+TOKEN_ENCRYPTION_KEY=your-64-char-hex-string
 
 # App URL (used for OAuth redirects)
 NEXT_PUBLIC_APP_URL=http://localhost:3001
 
 # Resend — get API key from resend.com
 RESEND_API_KEY=re_...
-# Resend Audience ID for newsletter signups — create an Audience in Resend dashboard, copy the ID
+# Resend Audience ID for newsletter signups
 RESEND_AUDIENCE_ID=your-audience-id
 
-# Stripe (leave blank until you implement payments)
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
+# Paddle — get from paddle.com dashboard (leave blank until Paddle account is set up)
+PADDLE_API_KEY=
+PADDLE_WEBHOOK_SECRET=
+PADDLE_PRO_PRICE_ID=
 ```
 
 Create `packages/extension/.env.local`:
@@ -291,7 +232,9 @@ VITE_API_URL=http://localhost:3001
 VITE_APP_URL=http://localhost:3001
 ```
 
-> **Security:** `.env.local` is in `.gitignore`. Never commit it. The `SUPABASE_SERVICE_ROLE_KEY` must only ever be on the server — it bypasses all Row Level Security.
+> **Security:** `.env.local` is in `.gitignore`. Never commit it. `SUPABASE_SERVICE_ROLE_KEY` bypasses all Row Level Security — keep it server-side only.
+
+---
 
 ### 3. Supabase setup
 
@@ -302,108 +245,195 @@ VITE_APP_URL=http://localhost:3001
 
 #### 3b. Run the database schema
 
-1. Open your Supabase project → **SQL Editor**
-2. Copy the contents of `supabase/schema.sql`
-3. Run it — this creates all tables, indexes, and triggers
+> ✅ **Already done** for the production project. Only needed when setting up a fresh project.
 
-#### 3c. Run the admin migration
+1. Open your Supabase project → **SQL Editor**
+2. Paste the contents of `supabase/schema.sql` and run it
+3. Then run the admin migration:
 
 ```sql
--- Add is_admin column
-ALTER TABLE public.users
-  ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE;
-
--- Grant yourself admin access
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE;
 UPDATE public.users SET is_admin = TRUE WHERE email = 'your@email.com';
 ```
 
-#### 3d. Configure Supabase Auth
+#### 3c. Configure auth providers
 
-In your Supabase project → **Authentication → Providers**:
+Supabase Dashboard → **Authentication → Providers**:
 - Enable **Email** (with email confirmation)
-- Enable **Google** OAuth (add your OAuth app credentials from Google Cloud Console)
+- Enable **Google** (see [Google OAuth setup](#4-google-oauth-setup) below)
 
-In **Authentication → Email Templates**, customize the confirmation and reset emails if needed.
+Supabase Dashboard → **Authentication → URL Configuration**:
+- Site URL: `https://your-app.vercel.app` (or `http://localhost:3001` for dev)
+- Redirect URLs: `https://your-app.vercel.app/auth/callback`, `http://localhost:3001/auth/callback`
 
-In **Authentication → URL Configuration**:
-- Site URL: `http://localhost:3001`
-- Redirect URLs: `http://localhost:3001/auth/callback`
+#### 3d. Configure Resend for transactional emails (optional)
 
-#### 3e. Configure Resend (optional but recommended)
+Supabase → Settings → Auth → SMTP Settings → add Resend SMTP credentials.
 
-By default Supabase sends emails via its own SMTP. For production, integrate [Resend](https://resend.com):
-1. Create a Resend account → get API key
-2. Supabase → Settings → Auth → SMTP Settings → add Resend credentials
+---
 
-### 4. Run locally
+### 4. Google OAuth setup
+
+Google OAuth requires credentials from Google Cloud Console. Without this, the "Continue with Google" button will not work.
+
+#### Step 1 — Google Cloud Console (~5 min)
+
+1. Go to [console.cloud.google.com](https://console.cloud.google.com)
+2. Create a new project (e.g. "FlowSpace")
+3. Left menu → **APIs & Services** → **OAuth consent screen**
+   - User type: **External**
+   - App name: FlowSpace, your email, save
+   - Scopes: only `email` and `profile` needed
+4. **Credentials** → **Create Credentials** → **OAuth 2.0 Client ID**
+   - Application type: **Web application**
+   - Authorized redirect URIs — add both:
+     ```
+     https://your-project-id.supabase.co/auth/v1/callback
+     http://localhost:3001/auth/callback
+     ```
+5. Copy the **Client ID** and **Client Secret**
+
+#### Step 2 — Supabase Dashboard (~2 min)
+
+1. **Authentication** → **Providers** → **Google**
+2. Toggle **Enable**
+3. Paste in the Client ID and Client Secret from above
+4. **Save**
+
+That's it — no code changes needed.
+
+---
+
+### 5. Paddle setup
+
+Paddle is the payment provider (Merchant of Record — they handle EU VAT so you don't have to).
+
+> See `PAYMENT_PLAN.md` for the full financial plan including Hungarian taxation.
+
+#### Step 1 — Create a Paddle account
+
+1. Go to [paddle.com](https://paddle.com) → Create account
+2. Verify your business details
+3. Dashboard → **Catalog** → **Products** → create "FlowSpace Pro"
+   - Price: €9.00 / month (recurring)
+4. Copy the **Price ID** → this is your `PADDLE_PRO_PRICE_ID`
+
+#### Step 2 — Get API credentials
+
+1. Dashboard → **Developer** → **Authentication** → create an API key
+2. Copy → `PADDLE_API_KEY`
+
+#### Step 3 — Configure webhook
+
+1. Dashboard → **Developer** → **Notifications** → New notification
+2. URL: `https://your-app.vercel.app/api/v1/webhooks/paddle`
+3. Events to subscribe: `subscription.activated`, `subscription.canceled`, `subscription.payment_failed`
+4. Copy the webhook secret → `PADDLE_WEBHOOK_SECRET`
+
+> **Note:** The webhook endpoint code is part of Fázis 3 in `DEPLOYMENT_PLAN.md` — not yet implemented.
+
+---
+
+### 6. Run locally
 
 ```bash
-# From the monorepo root — starts both the web app and watches for changes
 pnpm dev
 ```
 
-This runs:
-- `packages/web` on **http://localhost:3001** (Next.js dev server)
+This runs `packages/web` on **http://localhost:3001**. The web app includes all API routes — no separate server needed.
 
-The web app includes the backend API (`/api/v1/...`) — no separate server needed.
+> **WSL users:** Browser auto-launch won't work from WSL. Open `http://localhost:3001` manually.
 
-> **Note (WSL users):** If you're on WSL with the project on a Windows drive (`/mnt/g/...`), browser auto-launch won't work. Open `http://localhost:3001` manually.
+---
 
-### 5. Build & load the extension
-
-The extension is built separately (no watch mode — `vite build` only):
+### 7. Build & load the extension
 
 ```bash
-cd packages/extension
-pnpm build
-# or from root:
 pnpm --filter extension build
 ```
 
-Build output goes to `packages/extension/dist/`.
+Output goes to `packages/extension/dist/`.
 
 #### Load in Chrome / Edge / Brave
 
-1. Open `chrome://extensions` (or `edge://extensions`)
-2. Enable **Developer mode** (top right)
-3. Click **Load unpacked**
-4. Select the `packages/extension/dist/` folder
-5. Note the **Extension ID** shown on the card — add it to `NEXT_PUBLIC_EXTENSION_IDS` in `.env.local`
+1. Open `chrome://extensions`
+2. Enable **Developer mode** (top right toggle)
+3. **Load unpacked** → select `packages/extension/dist/`
+4. Copy the **Extension ID** → add to `NEXT_PUBLIC_EXTENSION_IDS` in `.env.local`
 
 #### Load in Firefox
 
 1. Open `about:debugging#/runtime/this-firefox`
-2. Click **Load Temporary Add-on**
-3. Select `packages/extension/dist/manifest.json`
-
-> Firefox extensions loaded this way are temporary — they disappear on restart. For persistent testing, use `about:addons` and install a signed `.xpi`.
+2. **Load Temporary Add-on** → select `packages/extension/dist/manifest.json`
 
 #### After loading
 
-1. Click the FlowSpace icon in the toolbar
-2. Click **Sign in** — this opens `http://localhost:3001/auth/extension`
-3. Log in with your account
-4. The extension receives the auth token automatically and closes the tab
-5. Click **Open FlowSpace** in the popup to launch the full UI
+1. Click the FlowSpace toolbar icon → **Sign in**
+2. Log in at `http://localhost:3001/auth/extension`
+3. The extension receives auth tokens automatically
+4. Click **Open FlowSpace** to launch the UI
+
+---
+
+## Vercel Deploy
+
+**What is Vercel and why do I need it?**
+
+The web app (`packages/web`) is a Next.js application that serves:
+- The landing page and dashboard UI
+- All API routes (`/api/v1/...`) that the extension calls
+- Auth flows (login, Google OAuth callback, password reset)
+
+Without a production deployment, the extension only works pointing at `http://localhost:3001`. To share it with real users, the web app must be hosted somewhere publicly accessible. Vercel is the standard choice for Next.js apps — free on the Hobby plan for small projects.
+
+### Deploy steps
+
+1. Push the repo to GitHub
+2. Go to [vercel.com](https://vercel.com) → New Project → import from GitHub
+3. **Root directory:** `packages/web`
+4. **Build command:** `pnpm build`
+5. **Environment variables** — add all variables from `.env.local` (with production values):
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJhbGci...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGci...
+NEXT_PUBLIC_EXTENSION_IDS=your-chrome-extension-id
+TOKEN_ENCRYPTION_KEY=your-64-char-hex
+NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
+RESEND_API_KEY=re_...
+RESEND_AUDIENCE_ID=...
+PADDLE_API_KEY=...
+PADDLE_WEBHOOK_SECRET=...
+PADDLE_PRO_PRICE_ID=...
+```
+
+6. Deploy — Vercel gives you a URL like `https://flowspace-xyz.vercel.app`
+7. Add a custom domain in Vercel → Settings → Domains (e.g. `app.flowspace.io`)
+8. Update Supabase Auth → URL Configuration with the production URL
+9. Update `packages/extension/manifest.json` → `externally_connectable` → production URL
+10. Rebuild and reload the extension
+
+### Vercel Analytics
+
+Analytics are already wired into the app (`@vercel/analytics` in `app/layout.tsx`). They activate automatically once the app is deployed to Vercel — no configuration needed. View data in the Vercel dashboard under your project → **Analytics** tab.
+
+Tracks: page views, unique visitors, top pages, countries, browsers. Free on the Hobby plan.
 
 ---
 
 ## Admin Panel
 
-The admin panel is available at `/admin/users` and is only accessible to users with `is_admin = TRUE` in the database.
-
-**Access:** After running the migration and setting yourself as admin, navigate to `http://localhost:3001/dashboard` — you'll see an **Admin Panel** link at the bottom of the sidebar.
-
-### Admin features
+Available at `/admin/users` — only accessible to users with `is_admin = TRUE` in the database.
 
 | Page | URL | What it shows |
 |---|---|---|
-| User list | `/admin/users` | All users with plan badge, workspace count, device count, join date |
+| User list | `/admin/users` | All users with plan badge, workspace/device counts, join date |
 | Stats bar | `/admin/users` (top) | Total users, Pro users, total workspaces, active devices |
-| User detail | `/admin/users/:id` | Full info: subscription (with Stripe IDs), all devices, all workspaces |
-| Device revoke | `/admin/users/:id` | Revoke any user's device directly from the UI |
+| User detail | `/admin/users/:id` | Subscription, all devices, all workspaces |
+| Device revoke | `/admin/users/:id` | Revoke any user's device |
 
-**Security:** The admin layout checks `is_admin` twice — once from the session cookie and once from the database via the service role client. Non-admin users are redirected to `/dashboard`.
+**Security:** The admin layout checks `is_admin` twice — once from the session cookie and once from the database via the service role client.
 
 ---
 
@@ -418,7 +448,7 @@ https://your-domain.com/api/v1   (production)
 
 ### Authentication
 
-All endpoints (except `/auth/extension/exchange` and `/health`) require:
+All endpoints (except `/auth/extension/exchange`, `/newsletter/subscribe`, and `/health`) require:
 
 ```
 Authorization: Bearer <supabase_access_token>
@@ -427,14 +457,12 @@ X-Device-Id: <device_uuid>        (optional, sent by extension for device tracki
 
 ### Response format
 
-**Success:**
 ```json
+// Success
 { "data": { ... }, "meta": { "requestId": "uuid" } }
-```
 
-**Error:**
-```json
-{ "error": { "code": "ERROR_CODE", "message": "Human readable message" }, "meta": { "requestId": "uuid" } }
+// Error
+{ "error": { "code": "ERROR_CODE", "message": "Human readable" }, "meta": { "requestId": "uuid" } }
 ```
 
 ### Error codes
@@ -445,15 +473,16 @@ X-Device-Id: <device_uuid>        (optional, sent by extension for device tracki
 | `DEVICE_REVOKED` | 401 | Device was revoked via the dashboard |
 | `TIER_LIMIT_REACHED` | 422 | Free tier limit hit (workspaces, tiles) |
 | `DEVICE_LIMIT_REACHED` | 422 | Max device count reached for your plan |
-| `SHORTCUT_CONFLICT` | 409 | That keyboard shortcut is already used by another workspace |
+| `SHORTCUT_CONFLICT` | 409 | Keyboard shortcut already used by another workspace |
 | `STALE_DATA` | 409 | Optimistic lock conflict — another device modified the resource |
 | `AUTH_CODE_EXPIRED` | 401 | Extension auth code expired or already used |
 | `AUTH_STATE_MISMATCH` | 401 | CSRF protection: state parameter mismatch |
+| `WRONG_PASSWORD` | 403 | Incorrect password (account deletion confirmation) |
 | `WORKSPACE_NOT_FOUND` | 404 | |
 | `TILE_NOT_FOUND` | 404 | |
 | `DEVICE_NOT_FOUND` | 404 | |
 | `BAD_REQUEST` | 400 | Request body validation failed |
-| `FORBIDDEN` | 403 | You don't have permission |
+| `FORBIDDEN` | 403 | Permission denied |
 | `INTERNAL_ERROR` | 500 | Server error |
 
 ---
@@ -461,175 +490,75 @@ X-Device-Id: <device_uuid>        (optional, sent by extension for device tracki
 ### Auth endpoints
 
 #### `POST /auth/extension/code`
-Called by the web app after the user logs in. Creates a 2-minute one-time auth code.
-
-```json
-// Request
-{ "state": "random-state-string", "extensionId": "chrome-extension-id" }
-
-// Response 200
-{ "data": { "code": "hex-64-chars", "expiresAt": "2026-05-30T10:02:00Z" } }
-```
+Creates a 2-minute one-time auth code. Called by the web app after login.
 
 #### `POST /auth/extension/exchange`
-Called by the extension. Exchanges the one-time code for Supabase tokens. No auth header needed.
+Exchanges the one-time code for Supabase tokens. Creates a device record. No auth required.
 
-```json
-// Request
-{
-  "code": "hex-64-chars",
-  "state": "random-state-string",
-  "deviceName": "Chrome Extension",
-  "browser": "chrome"
-}
+**Free tier behavior:** If the device limit (1) is reached, the oldest device is automatically revoked to allow re-auth after reinstalling. Pro tier returns `422 DEVICE_LIMIT_REACHED` when all 5 slots are full.
 
-// Response 201
-{
-  "data": {
-    "accessToken": "eyJ...",
-    "refreshToken": "...",
-    "deviceId": "uuid",
-    "user": { "id": "uuid", "email": "user@example.com", "name": null, "avatarUrl": null }
-  }
-}
-```
-
-**Free tier behavior:** If the device limit (1) is reached, the endpoint automatically revokes the oldest existing device, allowing re-authentication after reinstalling the extension. Pro tier returns `422 DEVICE_LIMIT_REACHED` when all 5 device slots are full.
+#### `POST /auth/extension/refresh`
+Exchanges a Supabase refresh token for a new access token. Called automatically by the extension before each request when the token is within 60 seconds of expiry.
 
 #### `POST /auth/extension/logout`
-Revokes the current device and invalidates the Supabase session. Returns `204`.
+Revokes the current device. Returns `204`.
 
 ---
 
 ### User endpoints
 
-#### `GET /users/me`
-Returns the current user's profile and subscription.
-
-#### `PATCH /users/me`
-Update `name` or `avatarUrl`.
+#### `GET /users/me` — profile + subscription
+#### `PATCH /users/me` — update name or avatarUrl
+#### `DELETE /users/me` — delete account. Requires `{ confirmPassword }` for email+password users (verified server-side).
 
 ---
 
 ### Workspace endpoints
 
-#### `GET /workspaces`
-List all workspaces ordered by `sort_order`.
-
-#### `POST /workspaces`
-Create a new workspace.
-```json
-{ "name": "Work", "icon": "💼", "color": "#6366f1", "shortcutKey": 1 }
-```
-Free tier: max 1 workspace → `422 TIER_LIMIT_REACHED` if exceeded.
-
-#### `GET /workspaces/:workspaceId`
-Get workspace with tiles array.
-
-#### `PATCH /workspaces/:workspaceId`
-Update name, icon, color, or shortcut key. Requires `updatedAt` for optimistic locking.
-```json
-{ "updatedAt": "2026-05-30T10:00:00Z", "name": "Dev", "icon": "🖥️", "color": "#8b5cf6", "shortcutKey": 2 }
-```
-
-#### `PATCH /workspaces/:workspaceId/layout`
-Save the binary tree tile layout after drag-to-resize or tile add/remove.
-```json
-{ "layoutJson": { "type": "split", "direction": "row", "ratio": 0.6, "first": {...}, "second": {...} } }
-```
-
-#### `POST /workspaces/:workspaceId/duplicate`
-Clone a workspace including all tiles and the layout.
-
-#### `POST /workspaces/reorder`
-Bulk update `sort_order` for all workspaces.
-```json
-{ "order": ["uuid-1", "uuid-2", "uuid-3"] }
-```
-
-#### `DELETE /workspaces/:workspaceId`
-Delete workspace and all its tiles (cascade). Returns `204`.
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/workspaces` | List all, ordered by sort_order |
+| `POST` | `/workspaces` | Create. Free: max 1 workspace |
+| `GET` | `/workspaces/:id` | Get with tiles |
+| `PATCH` | `/workspaces/:id` | Update (requires `updatedAt` for optimistic locking) |
+| `DELETE` | `/workspaces/:id` | Delete + cascade tiles |
+| `PATCH` | `/workspaces/:id/layout` | Save binary tree layout |
+| `POST` | `/workspaces/:id/duplicate` | Clone with tiles |
+| `POST` | `/workspaces/reorder` | Bulk update sort_order |
+| `POST` | `/workspaces/from-template/:id` | Create from template (tile limit enforced) |
 
 ---
 
 ### Tile endpoints
 
-#### `GET /workspaces/:workspaceId/tiles`
-List all tiles in a workspace.
-
-#### `POST /workspaces/:workspaceId/tiles`
-Add a tile to a workspace.
-```json
-{ "url": "https://github.com", "title": "GitHub", "faviconUrl": "...", "openMode": "iframe", "isPinned": false }
-```
-Free tier: max 4 tiles per workspace → `422 TIER_LIMIT_REACHED` if exceeded.
-
-#### `PATCH /workspaces/:workspaceId/tiles/:tileId`
-Update tile URL, title, openMode, or isPinned.
-
-#### `DELETE /workspaces/:workspaceId/tiles/:tileId`
-Remove a tile. Returns `204`.
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/workspaces/:id/tiles` | List tiles (max 500) |
+| `POST` | `/workspaces/:id/tiles` | Add tile. Free: max 4 per workspace |
+| `PATCH` | `/workspaces/:id/tiles/:tileId` | Update url/title/openMode/isPinned |
+| `DELETE` | `/workspaces/:id/tiles/:tileId` | Remove |
 
 ---
 
 ### Other endpoints
 
 #### `GET /tiles/metadata?url=<encoded-url>`
-Fetches title, favicon, and iframe-compatibility for a URL. Used when adding a tile to auto-populate metadata and determine the correct `openMode`.
+Fetches title, favicon, and iframe-compatibility for a URL. Private/loopback IPs and DNS-rebinding are blocked (SSRF protection).
 
-```json
-{
-  "data": {
-    "url": "https://gmail.com",
-    "title": "Gmail",
-    "faviconUrl": "https://ssl.gstatic.com/ui/v1/icons/mail/rfr/gmail.ico",
-    "isIframeable": false,
-    "iframeBlockReason": "x-frame-options: SAMEORIGIN"
-  }
-}
-```
-
-When `isIframeable` is `false`, the extension automatically creates the tile with `openMode: "tab"`. The `iframeBlockReason` indicates which header caused the block (`x-frame-options`, `csp: frame-ancestors ...`, or `unreachable`).
-
-#### `GET /devices`
-List all registered devices for the current user.
-
-#### `PATCH /devices/:deviceId`
-Rename a device.
-
-#### `DELETE /devices/:deviceId`
-Revoke a device (kick it out). The extension will receive `401 DEVICE_REVOKED` on its next API call.
+#### `GET /devices` / `PATCH /devices/:id` / `DELETE /devices/:id`
+List, rename, or revoke devices.
 
 #### `GET /subscriptions/me`
 Current subscription details.
 
-#### `POST /subscriptions/checkout`
-Create a Stripe Checkout session. Currently returns `503 NOT_IMPLEMENTED`.
-
-#### `GET /templates`
-List available workspace templates.
-
-#### `POST /workspaces/from-template/:templateId`
-Create a workspace from a template (tiles are created, layout is mapped).
+#### `GET /templates` / `POST /workspaces/from-template/:id`
+List workspace templates / create from template.
 
 #### `POST /newsletter/subscribe`
-Subscribe an email address to the Resend Audience. No auth required.
-
-```json
-// Request
-{ "email": "user@example.com" }
-
-// Response 200
-{ "data": { "subscribed": true } }
-```
-
-Duplicate emails are treated as success (existence not leaked). Returns `500` if `RESEND_AUDIENCE_ID` is not configured.
-
-#### `GET /marketing-plan`
-Returns the full `marketing-plan.md` file as `text/markdown`. No auth required. Intended for personal access — the rendered version is available at `/marketing-plan`.
+Subscribe email to Resend Audience. No auth required. Duplicate emails treated as success.
 
 #### `GET /health`
-Returns `{ "status": "ok" }`. No auth required. Use for uptime monitoring.
+Returns `{ "status": "ok" }`. No auth required.
 
 ---
 
@@ -640,26 +569,14 @@ Returns `{ "status": "ok" }`. No auth required. Use for uptime monitoring.
 | Table | Description |
 |---|---|
 | `users` | User profiles, synced from `auth.users` via DB trigger |
-| `subscriptions` | One per user — tracks plan, Stripe IDs, billing period |
+| `subscriptions` | One per user — tracks plan, Paddle IDs, billing period |
 | `devices` | Extension installs — each auth creates a device record |
 | `workspaces` | Named workspaces with layout, icon, color, shortcut key |
 | `tiles` | Individual website panels within a workspace |
 | `auth_extension_codes` | Short-lived one-time codes for extension auth (2-min TTL) |
-| `workspace_templates` | Reusable workspace presets (official + user-created) |
-
-### Key relationships
-
-```
-users
- ├── subscriptions (1:1)
- ├── devices (1:N)  ← one per extension install
- └── workspaces (1:N)
-      └── tiles (1:N)
-```
+| `workspace_templates` | Reusable workspace presets |
 
 ### Layout JSON structure
-
-Tile layout is stored as a binary tree in `workspaces.layout_json`:
 
 ```typescript
 type LayoutNode =
@@ -667,7 +584,7 @@ type LayoutNode =
   | { type: 'tile'; tileId: string }
 ```
 
-`ratio` is 0.0–1.0 (the proportion of the first child). Updated on every drag-to-resize `mouseup` event. `null` means empty workspace.
+`ratio` is 0.0–1.0 (proportion of the first child). `null` means empty workspace.
 
 ---
 
@@ -676,91 +593,32 @@ type LayoutNode =
 ### Extension auth flow
 
 ```
-Extension popup
-  │
-  ├─ "Sign In" button
-  │    ↓
-  │  Generates random state, opens:
-  │  localhost:3001/auth/extension?state=X&extensionId=Y
-  │    ↓
-  │  User logs in with Supabase (email or Google)
-  │    ↓
-  │  Web app calls POST /api/v1/auth/extension/code
-  │  (tokens encrypted AES-256-GCM, stored in auth_extension_codes)
-  │    ↓
-  │  Chrome:  chrome.runtime.sendMessage(extensionId, { code, state })
-  │  Firefox: window.postMessage → auth-relay.ts content script
-  │             → browser.runtime.sendMessage (internal)
-  │    ↓
-  │  Background script calls POST /api/v1/auth/extension/exchange
-  │  (exchanges code for Supabase tokens, creates device record)
-  │    ↓
-  └─ Tokens saved to browser.storage.local → extension is authenticated
+Extension popup → "Sign In"
+  → Opens /auth/extension?state=X&extensionId=Y
+  → User logs in (email or Google)
+  → Web app calls POST /api/v1/auth/extension/code
+    (tokens encrypted AES-256-GCM, stored with 2-min TTL)
+  → Chrome:  chrome.runtime.sendMessage(extensionId, { code, state })
+     Firefox: postMessage → auth-relay.ts → browser.runtime.sendMessage
+  → Background script calls POST /api/v1/auth/extension/exchange
+    (code exchanged for Supabase tokens, device record created)
+  → Tokens saved to browser.storage.local
+```
+
+### Token refresh flow
+
+```
+getAuth() called before every API request
+  → token expires in < 60s?
+    → POST /api/v1/auth/extension/refresh (concurrent calls deduplicated)
+    → new tokens saved to storage
+  → 401 received from any endpoint?
+    → one-time retry with fresh token via attemptRefresh()
 ```
 
 ### Header stripping (declarativeNetRequest)
 
-The extension uses a static rule in `public/rules/iframe.json` to remove iframe-blocking headers from all sub-frame responses:
-
-- `X-Frame-Options` — removed
-- `Content-Security-Policy` — removed
-- `Content-Security-Policy-Report-Only` — removed
-
-This makes it possible to embed sites like Google, Gmail, Notion, Linear, etc. in iframes.
-
-### Frame-buster protection
-
-Some sites (e.g. Stack Overflow) use JavaScript to escape iframes even after headers are stripped. The extension sets the `sandbox` attribute on all iframes without `allow-top-navigation`:
-
-```
-sandbox="allow-scripts allow-same-origin allow-forms allow-popups
-         allow-popups-to-escape-sandbox allow-modals allow-downloads
-         allow-top-navigation-by-user-activation"
-```
-
-This blocks `window.top.location = ...` calls while keeping the page fully functional. User-triggered link navigation still works via `allow-top-navigation-by-user-activation`.
-
-### Open in tab + sidebar tracking
-
-When the user clicks "Open in tab" on a tile:
-
-1. The tile is deleted from the DB and removed from the layout (frees the space)
-2. The extension background opens `browser.tabs.create({ url })`
-3. The background saves `{ tabId, url, title, faviconUrl }` to `browser.storage.local` as `poppedTabs`
-4. The App reads `poppedTabs` via storage `onChange` and renders favicon icons at the bottom of the left sidebar
-5. `browser.tabs.onUpdated` keeps the favicon current as the page loads
-6. `browser.tabs.onRemoved` removes the entry automatically when the tab is closed
-7. Clicking a sidebar icon sends `SWITCH_TO_TAB` to the background → focuses the tab and window
-
-### Favorites
-
-Favorites are stored in `browser.storage.local` as `{ url, title, faviconUrl }[]`. They are:
-
-- Added via the ⭐ button in the tile header (hover to reveal)
-- Removed via the × on the chip (hover to reveal)
-- Displayed inline in the top header bar between the workspace name and "Add tile"
-- Clicking a chip calls the full tile creation flow (metadata fetch + DB insert) so the site is opened as a proper tile in the current workspace with the correct `openMode`
-
-### Automatic iframe detection
-
-When a tile is created (via "Add tile", favorites bar, or "Split"), the metadata API makes a server-side HEAD request to the URL and inspects:
-
-- `X-Frame-Options: DENY` or `SAMEORIGIN` → `isIframeable: false`
-- `Content-Security-Policy: frame-ancestors 'none'` or any specific domain list → `isIframeable: false`
-
-If `isIframeable` is `false`, the tile is created with `openMode: 'tab'` and shows a "This site blocks embedding" card with an "Open in tab" button that pops it into the sidebar immediately.
-
-> Note: The extension's `declarativeNetRequest` rules strip these headers for embedded sub-frames. However, sites like Gmail or Google Drive still don't work when embedded due to third-party cookie restrictions (SameSite cookies). The server-side detection catches most of these cases proactively.
-
-### Binary tree layout manipulation
-
-The layout is a recursive binary tree. Three operations:
-
-- **Split tile** — replaces a `tile` node with a `split` node containing the original tile and a new tile
-- **Remove tile** — removes a `tile` node and collapses the parent `split` (sibling takes the removed slot)
-- **Resize** — updates the `ratio` field on the `split` node whose divider was dragged
-
-During drag, `pointer-events: none` is set on all iframes to prevent them from capturing mouse events. A `window mouseleave` fallback listener handles the mouse leaving the browser window.
+Static rules in `public/rules/iframe.json` remove `X-Frame-Options`, `Content-Security-Policy`, `Cross-Origin-Resource-Policy`, `Cross-Origin-Opener-Policy`, and `Cross-Origin-Embedder-Policy` from sub-frame responses, enabling sites like Notion, Linear, and Google Docs to be embedded.
 
 ---
 
@@ -772,10 +630,8 @@ During drag, `pointer-events: none` is set on all iframes to prevent them from c
 | Tiles per workspace | 4 | Unlimited |
 | Devices | 1 (auto-rotated on re-install) | 5 (manual management) |
 | Keyboard shortcuts | Ctrl+1–9 | Ctrl+1–9 |
-| Workspace templates | Official only | All (+ create custom) |
-| Admin panel access | ✗ (is_admin flag required) | ✗ (is_admin flag required) |
 
-Tier limits are defined in `packages/shared/src/index.ts`:
+Defined in `packages/shared/src/index.ts`:
 
 ```typescript
 export const TIER_LIMITS = {
@@ -789,118 +645,47 @@ export const TIER_LIMITS = {
 ## Security
 
 ### Token security
-- Supabase JWT access tokens are validated server-side on every API call via `supabase.auth.getUser(token)`
-- Tokens in `auth_extension_codes` are encrypted with **AES-256-GCM** using a server-side `ENCRYPTION_KEY` — never stored in plain text
-- One-time codes expire after 2 minutes and are single-use (replay protection via `used_at` timestamp)
+- Supabase JWT tokens validated server-side on every call via `supabase.auth.getUser(token)`
+- Extension auth codes encrypted with **AES-256-GCM** (`TOKEN_ENCRYPTION_KEY`) — never stored in plain text
+- One-time codes expire after 2 minutes, single-use (replay protection via `used_at`)
+- Account deletion requires password confirmation for email+password users (verified via Supabase `signInWithPassword`)
+
+### SSRF protection (tile metadata endpoint)
+The `/tiles/metadata` endpoint fetches external URLs on behalf of users. Three layers of protection:
+1. **Hostname blocklist** — private IPv4 ranges (10.x, 172.16–31.x, 192.168.x, 169.254.x/AWS metadata, 127.x, 0.x, 255.x), IPv6 private ranges (fc00::/7, fe80::/10), and IPv4-mapped IPv6 (`::ffff:...`)
+2. **DNS pre-resolution** — all A/AAAA records resolved before each request; any private address → rejected (closes DNS rebinding window)
+3. **Manual redirect following** — `redirect: 'manual'` with re-validation on every hop (max 5); prevents open-redirect SSRF
 
 ### Extension security
-- Auth tokens stored only in `browser.storage.local` — inaccessible to web pages
-- Content scripts use a **closed Shadow DOM** to prevent style conflicts and external access
-- `SUPABASE_SERVICE_ROLE_KEY` is never in the frontend or in git — server-side only
-- `.env.local` is gitignored
+- Auth tokens in `browser.storage.local` — inaccessible to web pages
+- Content scripts use a closed Shadow DOM
+- `SUPABASE_SERVICE_ROLE_KEY` never in frontend or git
 
 ### Admin panel
-- `is_admin` flag checked server-side on every admin page request
-- Uses the service role client (server-side only) — the flag itself cannot be changed via any client-facing API
-
-### iframe security
-The `sandbox` attribute prevents iframes from:
-- Navigating the top-level frame (`allow-top-navigation` omitted)
-- Accessing `window.top.location`
-
-Combined with `allow-same-origin`, cookie-based auth in embedded sites still works correctly because cross-origin restrictions still apply between the extension origin and the embedded site.
+- `is_admin` checked server-side on every admin request via service role client
+- Flag cannot be changed via any client-facing API
 
 ---
 
 ## Testing
 
-The backend (Next.js API routes and lib utilities) is covered by a unit test suite using **Vitest**.
-
-### Running tests
+78 tests across 7 files using **Vitest**. All run offline — no real database needed.
 
 ```bash
-# From the monorepo root
-pnpm --filter web test            # single run (CI-friendly)
-pnpm --filter web test:watch      # watch mode — re-runs on save during development
-pnpm --filter web test:coverage   # generates coverage report in packages/web/coverage/
+pnpm --filter web exec vitest run         # single run (CI-friendly)
+pnpm --filter web exec vitest             # watch mode
+pnpm --filter web exec vitest --coverage  # coverage report
 ```
 
-### Test overview
-
-78 tests across 7 files — all run in under 2 seconds.
-
-| File | Tests | What is covered |
+| File | Tests | Coverage |
 |---|---|---|
-| `tests/lib/crypto.test.ts` | 7 | AES-256-GCM roundtrip, random IV per call, wrong/missing key throws, tampered ciphertext and auth tag both throw |
-| `tests/lib/response.test.ts` | 22 | `ok()`, `created()`, `noContent()`, `apiError()` status codes and shapes; every `Errors.*` factory: correct HTTP status, error code, and message |
-| `tests/lib/auth.test.ts` | 7 | `requireAuth()`: missing header → 401, bad token format → 401, Supabase rejects token → 401, revoked device → 401 DEVICE_REVOKED, valid token with/without device header → auth context returned |
-| `tests/lib/tier.test.ts` | 11 | `checkWorkspaceLimit`, `checkTileLimit`, `checkDeviceLimit` for free tier (under limit → null, at limit → 422) and pro tier (always null for workspace/tile; 5-device limit for devices) |
-| `tests/api/workspaces.test.ts` | 17 | `GET /workspaces` (auth, empty list, populated list); `POST /workspaces` (validation errors, tier limit, shortcut conflict, success); `PATCH /workspaces/:id` (missing updatedAt, not found, stale data, shortcut conflict, success); `DELETE /workspaces/:id` (not found, success); `GET /workspaces/:id` (not found, success) |
-| `tests/api/auth-exchange.test.ts` | 9 | Code length validation, state length validation, code not found → 401, already-used code → 401, expired code → 401, state mismatch → 401, successful exchange → 201 with tokens + deviceId, free-tier auto-revoke of oldest device, pro-tier limit returns 422 |
-| `tests/api/devices.test.ts` | 5 | `GET /devices` (auth guard, device list, `isCurrent` flag); `POST /auth/extension/logout` (no device header → 400, success → 204) |
-
-### Architecture
-
-**No integration tests, no real database.** All tests run fully offline by mocking the Supabase client. This keeps the suite fast and avoids needing a running Supabase instance in CI.
-
-```
-tests/
-├── setup.ts                 ← sets TOKEN_ENCRYPTION_KEY and Supabase env vars before every test
-├── helpers/
-│   └── supabase-mock.ts     ← shared mock factory
-├── lib/                     ← pure unit tests (no mocking needed for crypto + response)
-└── api/                     ← route tests (requireAuth + createServiceClient both mocked)
-```
-
-#### Supabase mock (`tests/helpers/supabase-mock.ts`)
-
-The Supabase client uses a deeply chainable query builder pattern:
-
-```ts
-await supabase.from('workspaces').select('*').eq('user_id', id).order('sort_order')
-```
-
-`makeChain(result)` creates a mock object where every intermediate method (`select`, `eq`, `order`, `limit`, …) returns `this`, and the chain itself is thenable — `await chain` resolves with `{ data, error, count }`. Terminal methods (`single()`, `maybeSingle()`) also return a resolved Promise.
-
-`makeSupabase({ tables, authUser })` builds a full client mock. The `tables` map accepts either a single result or an array of results per table. When the same table is queried multiple times within one request handler, results are consumed in order (last entry is reused if the array runs out). This lets you configure multi-step handlers accurately:
-
-```ts
-// Example: POST /auth/extension/exchange queries 'devices' twice
-makeSupabase({
-  tables: {
-    devices: [
-      { count: 0 },                      // 1st call: device limit check
-      { data: { id: 'new-device-id' } }, // 2nd call: insert new device
-    ],
-  },
-})
-```
-
-#### API route test pattern
-
-For API route tests, two modules are always mocked:
-
-```ts
-vi.mock('@/lib/auth', () => ({
-  requireAuth: vi.fn(),
-  isAuthError: (r) => r.error !== null,
-}))
-vi.mock('@/lib/supabase', () => ({
-  createServiceClient: vi.fn(),
-}))
-```
-
-`requireAuth` is configured per-test to return either an auth context (`AUTH_CTX` from the helper) or a simulated 401, completely bypassing JWT validation. `createServiceClient` returns a `makeSupabase(...)` mock configured for the specific scenario being tested.
-
-### Adding tests for a new endpoint
-
-1. Create `tests/api/<resource>.test.ts`
-2. Add the two standard `vi.mock` calls at the top
-3. Import your route handler (`GET`, `POST`, etc.) directly
-4. For each test case, configure `requireAuth` and `createServiceClient` with `makeSupabase`
-5. Construct a `NextRequest` and call the handler — assert on `res.status` and `await res.json()`
-
-The query result order in `makeSupabase` must match the exact order your handler calls `supabase.from(table)`. Comments in the existing test files document this order for reference.
+| `crypto.test.ts` | 7 | AES-256-GCM roundtrip, random IV, wrong key, tampered ciphertext |
+| `response.test.ts` | 22 | All `ok/created/noContent/apiError/Errors.*` factories |
+| `auth.test.ts` | 7 | `requireAuth()`: missing/bad/revoked token, valid context |
+| `tier.test.ts` | 11 | Workspace/tile/device limits for free + pro |
+| `workspaces.test.ts` | 17 | Full CRUD: auth, validation, tier limits, optimistic locking |
+| `auth-exchange.test.ts` | 9 | Code exchange: validation, expiry, state mismatch, device auto-revoke |
+| `devices.test.ts` | 5 | Device list, `isCurrent` flag, logout |
 
 ---
 
@@ -908,116 +693,73 @@ The query result order in `makeSupabase` must match the exact order your handler
 
 ### GitHub Actions (`.github/workflows/ci.yml`)
 
-Runs on every push to every branch:
+Runs on every push:
 
-| Step | Command | Scope |
-|---|---|---|
-| Format check | `prettier --check .` | all packages |
-| Type check | `tsc --noEmit` | web + extension |
-| Lint | `eslint . --max-warnings 0` | web + extension |
-| Tests | `vitest run` | web (78 tests) |
+| Step | Scope |
+|---|---|
+| Format check (`prettier`) | all packages |
+| Type check (`tsc --noEmit`) | web + extension |
+| Lint (`eslint --max-warnings 0`) | web + extension |
+| Tests (`vitest run`) | web (78 tests) |
 
-All steps must pass before merging to `main`.
+All must pass before merging to `main`.
 
-### ESLint configuration
+### Branch protection
 
-- **Web** (`packages/web/eslint.config.mjs`): ESLint 9 flat config using `eslint-config-next`. `react-hooks/set-state-in-effect` is disabled (intentional data-fetching pattern — no server-state library in use).
-- **Extension** (`packages/extension/eslint.config.mjs`): `@typescript-eslint` + `eslint-plugin-react-hooks`.
-
-### Prettier configuration (root `prettier.config.mjs`)
-
-```js
-singleQuote: true, semi: false, trailingComma: 'all', printWidth: 100
-```
-
-### Self-hosted runner (recommended for CD)
-
-The repo has no public IP — only Tailscale access. For continuous deployment on push to `main`, run a GitHub Actions **self-hosted runner** on the server. The runner connects outbound to GitHub (no inbound connection needed), so Tailscale/firewall is irrelevant.
-
-```bash
-# On the server — follow GitHub: Settings → Actions → Runners → New self-hosted runner
-./config.sh --url https://github.com/USER/REPO --token TOKEN
-./svc.sh install && ./svc.sh start
-```
-
-Add a `deploy` job to `ci.yml` targeting `runs-on: self-hosted` that runs `git pull && pnpm install && pnpm --filter @flowspace/web build && pm2 restart flowspace`.
+`main` is protected:
+- Merges require a pull request
+- All CI checks must be green
+- Admin (repo owner) can push directly
 
 ---
 
 ## Roadmap
 
 ### Short term
-- [ ] **Vercel deploy** — production deployment with custom domain + HTTPS
-- [ ] **Stripe integration** — Pro tier upgrade flow
-- [ ] **CD pipeline** — self-hosted runner on server, auto-deploy on green `main`
+- [ ] **Paddle integration** — checkout URL, webhook handler, billing page (`DEPLOYMENT_PLAN.md` Fázis 3)
+- [ ] **Vercel production deploy** — with custom domain and all env vars
+- [ ] **Chrome Web Store submission** — $5 fee, screenshots, privacy policy page
+- [ ] **Google OAuth** — Cloud Console setup + Supabase provider config
 
 ### Medium term
 - [ ] **Workspace reorder** — drag-and-drop in the sidebar
 - [ ] **Workspace templates** — use official templates from the extension UI
-- [ ] **Chrome Web Store submission** — publish the extension
-- [ ] **Firefox Add-ons submission** — publish for Firefox
-- [ ] **Rate limiting** — protect API endpoints
+- [ ] **Firefox Add-ons submission**
+- [ ] **Onboarding wizard** — first-time user flow (0 workspaces → guided setup)
 - [ ] **Error monitoring** — Sentry integration
-- [ ] **Token refresh** — auto-refresh expired Supabase tokens in the extension
+- [ ] **Real-time sync** — Supabase Realtime for Pro multi-device sync
 
 ### Long term
-- [ ] **Offline mode** — cached workspaces + sync queue for offline use
-- [ ] **Custom templates** — Pro users can create and share workspace templates
-- [ ] **Workspace sharing** — share read-only workspace layouts
-- [ ] **Multi-window sync** — keep layout in sync across multiple browser windows
-- [ ] **Mobile** — responsive dashboard, mobile-friendly workspace viewer
-- [ ] **Safari** — requires additional Apple developer steps (Safari Web Extensions)
+- [ ] **Offline mode** — cached workspaces + sync queue
+- [ ] **Custom templates** — Pro users create and share templates
+- [ ] **Workspace sharing** — share read-only layouts
+- [ ] **Safari** — Safari Web Extensions (requires Apple developer steps)
 
 ### Done
-- [x] **GitHub push** — code in version control
-- [x] **GitHub Actions CI** — format, type-check, lint, tests on every push
-- [x] **Unit test suite** — 78 tests, Vitest, runs offline (no real DB needed)
-- [x] **Tab tile sidebar** — pop any tile out to a real browser tab; favicon tracked in left sidebar
+- [x] **Token refresh** — auto-refresh expired tokens, 401 retry, concurrent deduplication
+- [x] **Security hardening** — SSRF protection, account deletion auth, tier bypass fixes
+- [x] **GitHub Actions CI** — format, type-check, lint, 78 tests on every push
+- [x] **Branch protection** — PR required, CI must be green, admin push allowed
+- [x] **Vercel Analytics** — `@vercel/analytics` in root layout, activates on Vercel deploy
+- [x] **Auth fixes** — forgot password PKCE flow, Google OAuth error handling
+- [x] **Unit test suite** — 78 tests, Vitest, fully offline (mocked Supabase)
+- [x] **Supabase schema** — deployed to production project
+- [x] **Tab tile sidebar** — pop tiles to real tabs, favicon tracked, auto-cleanup
 - [x] **Favorites bar** — star tiles, one-click reopen in any workspace
-- [x] **Automatic iframe detection** — `openMode` set correctly at tile creation time
-- [x] **Newsletter** — Resend Audiences integration, email capture on landing page
-- [x] **Marketing plan** — rendered page at `/marketing-plan` + raw API at `/api/v1/marketing-plan`
-- [x] **Tile URL editing** — pencil button in tile header, re-fetches metadata automatically
-- [x] **Tile page tabs** — multiple pages per tile, VS Code-style tab bar, persisted in storage
-- [x] **Button tooltips** — all tile header actions have hover tooltips
-- [x] **Pre-commit hook** — Husky + `pnpm check` blocks commits with formatting/type/lint/test errors
+- [x] **Automatic iframe detection** — `openMode` set correctly at tile creation
+- [x] **Newsletter** — Resend Audiences integration
+- [x] **Pre-commit hook** — Husky blocks commits with formatting/type/lint/test errors
 
 ---
 
 ## Development notes
 
-### pnpm commands
-
 ```bash
-pnpm dev                          # start web app dev server
-pnpm build                        # build all packages
-pnpm --filter web build           # build web app only
-pnpm --filter extension build     # build extension only
-pnpm --filter web type-check      # TypeScript check (web)
-pnpm --filter extension type-check  # TypeScript check (extension)
-pnpm --filter web test            # run backend unit tests (single run)
-pnpm --filter web test:watch      # run tests in watch mode (re-runs on file save)
-pnpm --filter web test:coverage   # run tests with coverage report
+pnpm dev                              # start web app dev server (localhost:3001)
+pnpm --filter extension build         # build extension (output → dist/)
+pnpm --filter web exec vitest run     # run tests
+pnpm --filter web exec vitest         # tests in watch mode
+pnpm build                            # build all packages
 ```
 
-### Extension build is not a watch mode
-
-The `dev` script in the extension package runs `vite build` (not `vite build --watch`). This is intentional — WSL + watch mode causes instability on Windows-mounted drives. After any code change, manually run `pnpm --filter extension build` and reload the extension in the browser.
-
-### Supabase local development
-
-You can use [Supabase CLI](https://supabase.com/docs/guides/cli) for local development:
-```bash
-supabase start          # starts local Supabase stack
-supabase db push        # apply migrations
-```
-
-Or just use the hosted Supabase project for development (simpler for small teams).
-
-### Adding a new API endpoint
-
-1. Create `packages/web/app/api/v1/<path>/route.ts`
-2. Use `requireAuth(request)` + `isAuthError(auth)` for authentication
-3. Use `ok()`, `created()`, `noContent()`, or `Errors.*` from `@/lib/response`
-4. Add Zod validation for request bodies
-5. Use `createServiceClient()` for all database operations (bypasses RLS)
+> **Extension watch mode:** The extension uses `vite build` (not `--watch`) intentionally — WSL + watch mode causes instability on Windows-mounted drives (`/mnt/g/...`). Rebuild manually after code changes and reload in `chrome://extensions`.
