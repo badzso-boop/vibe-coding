@@ -36,6 +36,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     .select('*')
     .eq('workspace_id', workspaceId)
     .order('created_at', { ascending: true })
+    .limit(500)
 
   if (error) {
     console.error('Failed to fetch tiles:', error?.message)

@@ -5,6 +5,21 @@ import { ok, Errors } from '@/lib/response'
 const TIMEOUT_MS = 5_000
 const ALLOWED_PROTOCOLS = new Set(['http:', 'https:'])
 
+function isBlockedHost(hostname: string): boolean {
+  const h = hostname.toLowerCase().replace(/^\[|\]$/g, '') // strip IPv6 brackets
+  if (h === 'localhost' || h === '0.0.0.0' || h === '::1') return true
+  const ipv4 = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+  if (ipv4) {
+    const [a, b] = [Number(ipv4[1]), Number(ipv4[2])]
+    if (a === 127) return true // 127.x.x.x loopback
+    if (a === 10) return true // 10.x.x.x private
+    if (a === 172 && b >= 16 && b <= 31) return true // 172.16-31.x.x private
+    if (a === 192 && b === 168) return true // 192.168.x.x private
+    if (a === 169 && b === 254) return true // 169.254.x.x link-local (AWS metadata)
+  }
+  return false
+}
+
 function decodeHtmlEntities(s: string): string {
   return s
     .replace(/&amp;/g, '&')
@@ -60,6 +75,10 @@ export async function GET(request: NextRequest) {
     if (!ALLOWED_PROTOCOLS.has(parsed.protocol)) throw new Error()
   } catch {
     return Errors.badRequest('url must be a valid http or https URL')
+  }
+
+  if (isBlockedHost(parsed.hostname)) {
+    return Errors.badRequest('url must be a public web address')
   }
 
   try {
