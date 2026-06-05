@@ -7,17 +7,51 @@ const ALLOWED_PROTOCOLS = new Set(['http:', 'https:'])
 
 function isBlockedHost(hostname: string): boolean {
   const h = hostname.toLowerCase().replace(/^\[|\]$/g, '') // strip IPv6 brackets
-  if (h === 'localhost' || h === '0.0.0.0' || h === '::1') return true
+  if (h === 'localhost' || h === '0.0.0.0' || h === '::' || h === '::1') return true
+  // IPv4-mapped IPv6 (::ffff:127.0.0.1) — recurse with the embedded v4 address
+  const v4mapped = h.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/)
+  if (v4mapped) return isBlockedHost(v4mapped[1])
+  // IPv4 private / reserved ranges
   const ipv4 = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
   if (ipv4) {
     const [a, b] = [Number(ipv4[1]), Number(ipv4[2])]
-    if (a === 127) return true // 127.x.x.x loopback
+    if (a === 0) return true // 0.x.x.x unspecified
     if (a === 10) return true // 10.x.x.x private
+    if (a === 127) return true // 127.x.x.x loopback
+    if (a === 169 && b === 254) return true // 169.254.x.x link-local (AWS metadata)
     if (a === 172 && b >= 16 && b <= 31) return true // 172.16-31.x.x private
     if (a === 192 && b === 168) return true // 192.168.x.x private
-    if (a === 169 && b === 254) return true // 169.254.x.x link-local (AWS metadata)
+    if (a === 255) return true // broadcast
   }
+  // IPv6 private: ULA fc00::/7 and link-local fe80::/10
+  if (/^f[cd]/i.test(h) || /^fe[89ab]/i.test(h)) return true
   return false
+}
+
+const MAX_REDIRECTS = 5
+
+async function safeFetch(initialUrl: string, signal: AbortSignal): Promise<Response> {
+  let currentUrl = initialUrl
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const res = await fetch(currentUrl, {
+      redirect: 'manual',
+      signal,
+      headers: { 'User-Agent': 'FlowSpace/1.0 (metadata bot)' },
+    })
+    if (res.status < 300 || res.status >= 400) return res
+    const location = res.headers.get('location')
+    if (!location) return res
+    let next: URL
+    try {
+      next = new URL(location, currentUrl)
+      if (!ALLOWED_PROTOCOLS.has(next.protocol)) throw new Error()
+    } catch {
+      throw new Error('Redirect to invalid URL')
+    }
+    if (isBlockedHost(next.hostname)) throw new Error('Redirect to blocked host')
+    currentUrl = next.toString()
+  }
+  throw new Error('Too many redirects')
 }
 
 function decodeHtmlEntities(s: string): string {
@@ -83,11 +117,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const getSignal = AbortSignal.timeout(TIMEOUT_MS)
-    const getRes = await fetch(rawUrl, {
-      redirect: 'follow',
-      signal: getSignal,
-      headers: { 'User-Agent': 'FlowSpace/1.0 (metadata bot)' },
-    })
+    const getRes = await safeFetch(rawUrl, getSignal)
 
     const contentType = getRes.headers.get('content-type') ?? ''
     if (!contentType.includes('text/html')) {
