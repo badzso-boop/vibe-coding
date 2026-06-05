@@ -1,5 +1,5 @@
 import { type NextRequest } from 'next/server'
-import { resend } from '@/lib/resend'
+import { getResend } from '@/lib/resend'
 import { ok, Errors } from '@/lib/response'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     return Errors.badRequest('A valid email address is required.')
   }
 
-  const { error } = await resend.contacts.create({ email, audienceId, unsubscribed: false })
+  const { error } = await getResend().contacts.create({ email, audienceId, unsubscribed: false })
 
   if (error) {
     // Resend returns a specific error when the contact already exists
