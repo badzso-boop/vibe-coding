@@ -32,7 +32,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .maybeSingle()
 
   if (error) {
-    console.error('Failed to update device:', error)
+    console.error('Failed to update device:', error?.message)
     return Errors.internalError()
   }
   if (!device) return Errors.deviceNotFound()
@@ -71,7 +71,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     .eq('user_id', auth.ctx.user.id)
 
   if (error) {
-    console.error('Failed to revoke device:', error)
+    console.error('Failed to revoke device:', error?.message)
     return Errors.internalError()
   }
 

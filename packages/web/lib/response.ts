@@ -56,5 +56,6 @@ export const Errors = {
   templateNotFound: () => apiError(404, 'TEMPLATE_NOT_FOUND', 'Template not found'),
   badRequest: (msg: string) => apiError(400, 'BAD_REQUEST', msg),
   forbidden: () => apiError(403, 'FORBIDDEN', 'You do not have permission to perform this action'),
+  wrongPassword: () => apiError(403, 'WRONG_PASSWORD', 'Incorrect password'),
   internalError: () => apiError(500, 'INTERNAL_ERROR', 'An unexpected error occurred'),
 } as const

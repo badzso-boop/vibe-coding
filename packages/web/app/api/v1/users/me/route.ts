@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { requireAuth, isAuthError } from '@/lib/auth'
-import { createServiceClient } from '@/lib/supabase'
+import { createServiceClient, createAnonClient } from '@/lib/supabase'
 import { ok, noContent, Errors } from '@/lib/response'
 
 export async function GET(request: NextRequest) {
@@ -79,7 +79,7 @@ export async function PATCH(request: NextRequest) {
     .single()
 
   if (error || !user) {
-    console.error('Failed to update user:', error)
+    console.error('Failed to update user:', error?.message)
     return Errors.internalError()
   }
 
@@ -103,19 +103,36 @@ export async function DELETE(request: NextRequest) {
   const auth = await requireAuth(request)
   if (isAuthError(auth)) return auth.error
 
+  let body: z.infer<typeof deleteSchema>
   try {
-    deleteSchema.parse(await request.json())
+    body = deleteSchema.parse(await request.json())
   } catch {
     return Errors.badRequest('Invalid request body')
   }
 
   const supabase = createServiceClient()
 
+  // Check if the user has email+password authentication
+  const { data: adminUser } = await supabase.auth.admin.getUserById(auth.ctx.user.id)
+  const hasPasswordAuth = adminUser?.user?.identities?.some((i) => i.provider === 'email') ?? false
+
+  if (hasPasswordAuth) {
+    if (!body.confirmPassword) {
+      return Errors.badRequest('Password confirmation is required to delete your account')
+    }
+    const anonClient = createAnonClient()
+    const { error: signInError } = await anonClient.auth.signInWithPassword({
+      email: auth.ctx.user.email,
+      password: body.confirmPassword,
+    })
+    if (signInError) return Errors.wrongPassword()
+  }
+
   // Delete from Supabase Auth — cascades to public.users via DB trigger
   const { error } = await supabase.auth.admin.deleteUser(auth.ctx.user.id)
 
   if (error) {
-    console.error('Failed to delete user:', error)
+    console.error('Failed to delete user:', error?.message)
     return Errors.internalError()
   }
 

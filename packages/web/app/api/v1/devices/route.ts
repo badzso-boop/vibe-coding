@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('Failed to fetch devices:', error)
+    console.error('Failed to fetch devices:', error?.message)
     return Errors.internalError()
   }
 

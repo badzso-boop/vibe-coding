@@ -5,9 +5,23 @@ import { ok, Errors } from '@/lib/response'
 const TIMEOUT_MS = 5_000
 const ALLOWED_PROTOCOLS = new Set(['http:', 'https:'])
 
+function decodeHtmlEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+}
+
 function extractTitle(html: string): string | null {
   const match = html.match(/<title[^>]*>([^<]{1,512})<\/title>/i)
-  return match ? match[1].trim() : null
+  if (!match) return null
+  // Strip any residual tags and decode entities so stored titles are plain text
+  const stripped = match[1].replace(/<[^>]*>/g, '').trim()
+  return decodeHtmlEntities(stripped) || null
 }
 
 function extractFavicon(html: string, origin: string): string | null {

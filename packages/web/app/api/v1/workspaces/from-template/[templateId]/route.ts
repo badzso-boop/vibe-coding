@@ -3,9 +3,9 @@ import { z } from 'zod'
 import { randomUUID } from 'crypto'
 import { requireAuth, isAuthError } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase'
-import { checkWorkspaceLimit } from '@/lib/tier'
+import { checkWorkspaceLimit, getUserTier } from '@/lib/tier'
 import { created, Errors } from '@/lib/response'
-import type { LayoutNode } from '@flowspace/shared'
+import { type LayoutNode, TIER_LIMITS } from '@flowspace/shared'
 
 type Params = { params: Promise<{ templateId: string }> }
 
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     .single()
 
   if (wsError || !workspace) {
-    console.error('Failed to create workspace from template:', wsError)
+    console.error('Failed to create workspace from template:', wsError?.message)
     return Errors.internalError()
   }
 
@@ -113,9 +113,18 @@ export async function POST(request: NextRequest, { params }: Params) {
   }))
 
   if (tilesToInsert.length > 0) {
+    const tier = await getUserTier(supabase, auth.ctx.user.id)
+    const tileLimit = TIER_LIMITS[tier].tilesPerWorkspace
+    if (tileLimit !== Infinity && tilesToInsert.length > tileLimit) {
+      await supabase.from('workspaces').delete().eq('id', workspace.id)
+      return Errors.tierLimitReached(
+        `Free tier allows only ${tileLimit} tiles per workspace. Upgrade to Pro for unlimited tiles.`,
+      )
+    }
+
     const { error: tilesError } = await supabase.from('tiles').insert(tilesToInsert)
     if (tilesError) {
-      console.error('Failed to insert template tiles:', tilesError)
+      console.error('Failed to insert template tiles:', tilesError?.message)
       await supabase.from('workspaces').delete().eq('id', workspace.id)
       return Errors.internalError()
     }

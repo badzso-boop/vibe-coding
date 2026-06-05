@@ -76,7 +76,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     .single()
 
   if (wsError || !newWorkspace) {
-    console.error('Failed to create duplicate workspace:', wsError)
+    console.error('Failed to create duplicate workspace:', wsError?.message)
     return Errors.internalError()
   }
 
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     const { error: tilesError } = await supabase.from('tiles').insert(newTiles)
     if (tilesError) {
-      console.error('Failed to duplicate tiles:', tilesError)
+      console.error('Failed to duplicate tiles:', tilesError?.message)
       // Clean up the workspace we just created
       await supabase.from('workspaces').delete().eq('id', newWorkspace.id)
       return Errors.internalError()

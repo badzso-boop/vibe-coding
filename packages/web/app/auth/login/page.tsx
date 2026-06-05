@@ -40,14 +40,19 @@ function LoginForm() {
   }
 
   async function handleGoogle() {
+    setError(null)
     setGoogleLoading(true)
     const supabase = createClient()
-    await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
       },
     })
+    if (error) {
+      setError(error.message)
+      setGoogleLoading(false)
+    }
   }
 
   return (

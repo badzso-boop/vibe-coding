@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
   })
 
   if (error) {
-    console.error('Failed to create extension code:', error)
+    console.error('Failed to create extension code:', error?.message)
     return Errors.internalError()
   }
 

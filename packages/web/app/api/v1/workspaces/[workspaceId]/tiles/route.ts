@@ -38,7 +38,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     .order('created_at', { ascending: true })
 
   if (error) {
-    console.error('Failed to fetch tiles:', error)
+    console.error('Failed to fetch tiles:', error?.message)
     return Errors.internalError()
   }
 
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     .single()
 
   if (error || !tile) {
-    console.error('Failed to create tile:', error)
+    console.error('Failed to create tile:', error?.message)
     return Errors.internalError()
   }
 

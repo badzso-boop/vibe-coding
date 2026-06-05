@@ -29,10 +29,12 @@ export async function GET(request: NextRequest) {
     query = query.order('created_at', { ascending: false })
   }
 
+  query = query.limit(100)
+
   const { data: templates, error } = await query
 
   if (error) {
-    console.error('Failed to fetch templates:', error)
+    console.error('Failed to fetch templates:', error?.message)
     return Errors.internalError()
   }
 

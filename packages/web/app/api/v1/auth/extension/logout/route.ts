@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     .eq('user_id', user.id)
 
   if (error) {
-    console.error('Failed to revoke device:', error)
+    console.error('Failed to revoke device:', error?.message)
     return Errors.internalError()
   }
 

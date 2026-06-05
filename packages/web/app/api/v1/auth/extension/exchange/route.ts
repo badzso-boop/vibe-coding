@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     .eq('id', record.id)
 
   if (markError) {
-    console.error('Failed to mark code as used:', markError)
+    console.error('Failed to mark code as used:', markError?.message)
     return Errors.internalError()
   }
 
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (deviceError || !device) {
-    console.error('Failed to create device:', deviceError)
+    console.error('Failed to create device:', deviceError?.message)
     return Errors.internalError()
   }
 

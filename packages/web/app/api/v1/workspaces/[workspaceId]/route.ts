@@ -48,7 +48,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     .maybeSingle()
 
   if (error) {
-    console.error('Failed to fetch workspace:', error)
+    console.error('Failed to fetch workspace:', error?.message)
     return Errors.internalError()
   }
   if (!workspace) return Errors.workspaceNotFound()
@@ -127,7 +127,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .single()
 
   if (error || !updated) {
-    console.error('Failed to update workspace:', error)
+    console.error('Failed to update workspace:', error?.message)
     return Errors.internalError()
   }
 
@@ -158,7 +158,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     .eq('user_id', auth.ctx.user.id)
 
   if (error) {
-    console.error('Failed to delete workspace:', error)
+    console.error('Failed to delete workspace:', error?.message)
     return Errors.internalError()
   }
 

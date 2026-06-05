@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       // Already subscribed — treat as success so we don't leak existence
       return ok({ subscribed: true })
     }
-    console.error('[newsletter] Resend error:', error)
+    console.error('[newsletter] Resend error:', error?.message)
     return Errors.internalError()
   }
 

@@ -65,7 +65,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .eq('user_id', auth.ctx.user.id)
 
   if (error) {
-    console.error('Failed to update layout:', error)
+    console.error('Failed to update layout:', error?.message)
     return Errors.internalError()
   }
 

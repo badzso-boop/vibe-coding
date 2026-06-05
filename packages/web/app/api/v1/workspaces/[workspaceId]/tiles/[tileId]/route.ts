@@ -69,7 +69,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .single()
 
   if (error || !updated) {
-    console.error('Failed to update tile:', error)
+    console.error('Failed to update tile:', error?.message)
     return Errors.internalError()
   }
 
@@ -106,7 +106,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const { error } = await supabase.from('tiles').delete().eq('id', tileId)
 
   if (error) {
-    console.error('Failed to delete tile:', error)
+    console.error('Failed to delete tile:', error?.message)
     return Errors.internalError()
   }
 

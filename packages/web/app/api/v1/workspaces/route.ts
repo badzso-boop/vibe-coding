@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     .order('sort_order', { ascending: true })
 
   if (error) {
-    console.error('Failed to fetch workspaces:', error)
+    console.error('Failed to fetch workspaces:', error?.message)
     return Errors.internalError()
   }
 
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (error || !workspace) {
-    console.error('Failed to create workspace:', error)
+    console.error('Failed to create workspace:', error?.message)
     return Errors.internalError()
   }
 
