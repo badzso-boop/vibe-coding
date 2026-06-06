@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Menu, X } from 'lucide-react'
+import { Menu, X, MessageSquare } from 'lucide-react'
 import { Logo } from './logo'
+import { FeedbackModal } from './feedback-modal'
 
 export function Nav() {
   const [open, setOpen] = useState(false)
@@ -35,6 +36,14 @@ export function Nav() {
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
+          <FeedbackModal
+            trigger={
+              <button className="flex items-center gap-1.5 text-sm text-slate-400 transition-colors hover:text-white">
+                <MessageSquare size={14} />
+                Feedback
+              </button>
+            }
+          />
           <Link
             href="/auth/login"
             className="text-sm text-slate-400 transition-colors hover:text-white"
@@ -78,6 +87,14 @@ export function Nav() {
               Pricing
             </Link>
             <hr className="border-white/10" />
+            <FeedbackModal
+              trigger={
+                <button className="flex items-center gap-1.5 text-sm text-slate-400">
+                  <MessageSquare size={14} />
+                  Feedback
+                </button>
+              }
+            />
             <Link href="/auth/login" className="text-sm text-slate-400">
               Sign in
             </Link>

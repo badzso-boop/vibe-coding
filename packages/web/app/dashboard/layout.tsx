@@ -1,9 +1,10 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { LayoutGrid, Monitor, CreditCard, LogOut, ShieldCheck } from 'lucide-react'
+import { LayoutGrid, Monitor, CreditCard, LogOut, ShieldCheck, MessageSquare } from 'lucide-react'
 import { createClient } from '@/utils/supabase/server'
 import { createServiceClient } from '@/lib/supabase'
 import { Logo } from '@/components/logo'
+import { FeedbackModal } from '@/components/feedback-modal'
 
 async function SignOutButton() {
   return (
@@ -61,6 +62,17 @@ export default async function DashboardLayout({ children }: { children: React.Re
               {label}
             </Link>
           ))}
+          <div className="mt-auto pt-2">
+            <FeedbackModal
+              userEmail={user.email ?? undefined}
+              trigger={
+                <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900">
+                  <MessageSquare size={15} />
+                  Send feedback
+                </button>
+              }
+            />
+          </div>
         </nav>
 
         <div className="border-t border-slate-100 p-3">
