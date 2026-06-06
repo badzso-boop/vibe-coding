@@ -180,7 +180,17 @@ document.addEventListener(
   true,
 )
 
-if (!sessionStorage.getItem('fs-widget-dismissed')) {
+function shouldShowWidget(): boolean {
+  // Don't inject into iframes
+  if (window !== window.top) return false
+  // Don't inject into popup windows (window.open — payment dialogs, OAuth flows, etc.)
+  if (window.opener !== null) return false
+  // Don't inject into very small windows (popup-style dialogs)
+  if (window.innerWidth < 500 || window.innerHeight < 400) return false
+  return true
+}
+
+if (shouldShowWidget() && !sessionStorage.getItem('fs-widget-dismissed')) {
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', createWidget)
   } else {
