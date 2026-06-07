@@ -151,7 +151,11 @@ export function FeedbackModal({ trigger, userEmail }: Props) {
                         placeholder="Short summary of your feedback"
                         className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                       />
-                      <p className="mt-1 text-right text-xs text-slate-400">{title.length}/100</p>
+                      <p
+                        className={`mt-1 text-right text-xs ${title.length > 0 && title.length < 5 ? 'text-red-400' : 'text-slate-400'}`}
+                      >
+                        {title.length < 5 ? `${title.length}/5 min` : `${title.length}/100`}
+                      </p>
                     </div>
 
                     {/* Description */}
@@ -174,8 +178,12 @@ export function FeedbackModal({ trigger, userEmail }: Props) {
                         }
                         className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                       />
-                      <p className="mt-1 text-right text-xs text-slate-400">
-                        {description.length}/2000
+                      <p
+                        className={`mt-1 text-right text-xs ${description.length > 0 && description.length < 10 ? 'text-red-400' : 'text-slate-400'}`}
+                      >
+                        {description.length < 10
+                          ? `${description.length}/10 min`
+                          : `${description.length}/2000`}
                       </p>
                     </div>
 
